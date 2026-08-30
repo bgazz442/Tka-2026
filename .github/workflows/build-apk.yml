@@ -43,6 +43,9 @@ jobs:
       - name: Flutter analyze
         run: flutter analyze
 
+      - name: Flutter test
+        run: flutter test
+
       - name: Flutter build APK release
         run: flutter build apk --release
 
@@ -61,3 +64,7 @@ jobs:
           body: Automated release APK from commit ${{ github.sha }}.
           files: build/app/outputs/flutter-apk/app-release.apk
           fail_on_unmatched_files: true
+
+      - name: Remove Firebase configuration
+        if: ${{ always() }}
+        run: rm -f android/app/google-services.json
