@@ -70,3 +70,4 @@ secrets.*
 
 # Keep Firebase client config available for Android Web setup when needed.
 # Do not commit admin/private credentials.
+android/app/google-services.json
