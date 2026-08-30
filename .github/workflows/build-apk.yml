@@ -17,6 +17,12 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: Setup Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
@@ -24,19 +30,12 @@ jobs:
           channel: stable
           cache: true
 
-      - name: Create Firebase google-services.json
+      - name: Configure Firebase
         env:
-          GOOGLE_SERVICES_JSON: ${{ secrets.FIREBASE_GOOGLE_SERVICES_JSON }}
+          FIREBASE_GOOGLE_SERVICES_JSON: ${{ secrets.FIREBASE_GOOGLE_SERVICES_JSON }}
         run: |
-          if [ -z "$GOOGLE_SERVICES_JSON" ]; then
-            echo "ERROR: FIREBASE_GOOGLE_SERVICES_JSON secret is missing."
-            exit 1
-          fi
-
-          printf '%s' "$GOOGLE_SERVICES_JSON" > android/app/google-services.json
-          chmod 600 android/app/google-services.json
-          jq empty android/app/google-services.json
-          jq -e '.project_info.project_id and (.client | length > 0)' android/app/google-services.json >/dev/null
+          chmod +x .github/scripts/create_google_services.sh
+          .github/scripts/create_google_services.sh
 
       - name: Flutter pub get
         run: flutter pub get
