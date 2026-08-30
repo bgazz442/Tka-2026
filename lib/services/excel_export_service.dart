@@ -50,7 +50,7 @@ class ExcelExportService {
       dataSheet.cell(CellIndex.indexByString('H$row')).value = IntCellValue(item.wrong);
       dataSheet.cell(CellIndex.indexByString('I$row')).value = IntCellValue(item.empty);
       dataSheet.cell(CellIndex.indexByString('J$row')).value = IntCellValue(item.score);
-      dataSheet.cell(CellIndex.indexByString('K$row')).value = TextCellValue('$_formatDuration(item.durationSeconds)');
+      dataSheet.cell(CellIndex.indexByString('K$row')).value = TextCellValue(_formatDuration(item.durationSeconds));
     }
 
     summarySheet.cell(CellIndex.indexByString('A1')).value = TextCellValue('Nama Peserta');
@@ -131,7 +131,7 @@ class ExcelExportService {
     }
 
     final directory = await getApplicationDocumentsDirectory();
-    final fileName = 'TKA_Study_Hasil_${safeUsername}.xlsx';
+    final fileName = 'TKA_Study_Hasil_$safeUsername.xlsx';
     final path = '${directory.path}/$fileName';
     final bytes = workbook.save();
     final file = File(path);
@@ -144,8 +144,23 @@ class ExcelExportService {
     );
   }
 
-  static Future<void> shareExport(String filePath) async {
-    await Share.shareXFiles([XFile(filePath)], text: 'Laporan hasil belajar TKA Study');
+  static Future<ShareResult> shareExport(String filePath) async {
+    final result = await SharePlus.instance.share(
+      ShareParams(
+        files: [XFile(filePath)],
+        text: 'Laporan hasil belajar TKA Study',
+      ),
+    );
+
+    if (result.status == ShareResultStatus.dismissed) {
+      throw StateError('Share dibatalkan pengguna.');
+    }
+
+    if (result.status == ShareResultStatus.unavailable) {
+      throw StateError('Fitur bagikan file tidak tersedia pada perangkat ini.');
+    }
+
+    return result;
   }
 
   static String _sanitizeFileName(String input) {

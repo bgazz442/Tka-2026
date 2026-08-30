@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 import '../services/biometric_service.dart';
 import '../services/storage_service.dart';
 import '../utils/constants.dart';
-import 'biometric_setup_screen.dart';
 import 'home_screen.dart';
 import 'setup_profile_screen.dart';
 

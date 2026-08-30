@@ -180,6 +180,9 @@ class SettingsScreen extends StatelessWidget {
   }
 
   void _confirmReset(BuildContext context) {
+    final navigator = Navigator.of(context);
+    final authProvider = context.read<AuthProvider>();
+
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -191,11 +194,14 @@ class SettingsScreen extends StatelessWidget {
             onPressed: () async {
               Navigator.pop(ctx);
               await StorageService.resetAll();
+
               try {
-                await context.read<AuthProvider>().logout();
+                await authProvider.logout();
               } catch (_) {}
+
               if (!context.mounted) return;
-              Navigator.of(context).pushAndRemoveUntil(
+
+              navigator.pushAndRemoveUntil(
                 MaterialPageRoute(builder: (_) => const SetupProfileScreen()),
                 (route) => false,
               );
