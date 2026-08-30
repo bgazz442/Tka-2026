@@ -30,15 +30,16 @@ jobs:
           channel: stable
           cache: true
 
+      - name: Flutter pub get
+        run: flutter pub get
+
       - name: Configure Firebase
         env:
           FIREBASE_GOOGLE_SERVICES_JSON: ${{ secrets.FIREBASE_GOOGLE_SERVICES_JSON }}
         run: |
           chmod +x .github/scripts/create_google_services.sh
           .github/scripts/create_google_services.sh
-
-      - name: Flutter pub get
-        run: flutter pub get
+          test -s android/app/google-services.json
 
       - name: Flutter analyze
         run: flutter analyze
@@ -52,7 +53,7 @@ jobs:
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
-          name: TKA-2026-APK
+          name: tka-2026-release-apk
           path: build/app/outputs/flutter-apk/app-release.apk
           if-no-files-found: error
 
