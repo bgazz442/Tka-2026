@@ -13,8 +13,7 @@ class RegisterScreen extends StatefulWidget {
 
 class _RegisterScreenState extends State<RegisterScreen> {
   final _formKey = GlobalKey<FormState>();
-  final _nameController = TextEditingController();
-  final _emailController = TextEditingController();
+  final _usernameController = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
   bool _obscurePassword = true;
@@ -22,8 +21,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
   @override
   void dispose() {
-    _nameController.dispose();
-    _emailController.dispose();
+    _usernameController.dispose();
     _passwordController.dispose();
     _confirmPasswordController.dispose();
     super.dispose();
@@ -36,12 +34,14 @@ class _RegisterScreenState extends State<RegisterScreen> {
     final auth = context.read<AuthProvider>();
     auth.clearError();
 
-    final success = await auth.registerWithEmail(
-      name: _nameController.text.trim(),
-      email: _emailController.text.trim(),
+    final success = await auth.register(
+      username: _usernameController.text.trim(),
       password: _passwordController.text,
     );
 
+    if (success && mounted) {
+      await _offerBiometric(auth);
+    }
     if (success && mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -57,32 +57,32 @@ class _RegisterScreenState extends State<RegisterScreen> {
     }
   }
 
-  Future<void> _registerWithGoogle() async {
-    final auth = context.read<AuthProvider>();
-    final success = await auth.signInWithGoogle();
-    if (success && mounted) {
-      Navigator.of(context).pushAndRemoveUntil(
-        MaterialPageRoute(builder: (_) => const HomeScreen()),
-        (route) => false,
-      );
-    }
+  Future<void> _offerBiometric(AuthProvider auth) async {
+    final enable = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Aktifkan login biometrik?'),
+        content: const Text('Gunakan sidik jari atau biometrik perangkat untuk login berikutnya.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Nanti'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Aktifkan'),
+          ),
+        ],
+      ),
+    );
+    if (enable == true) await auth.enableBiometric();
   }
 
-  String? _validateName(String? value) {
-    if (value == null || value.trim().isEmpty) {
-      return 'Nama wajib diisi';
-    }
-    if (value.trim().length < 2) {
-      return 'Nama minimal 2 karakter';
-    }
-    return null;
-  }
-
-  String? _validateEmail(String? value) {
+  String? _validateUsername(String? value) {
     final text = value?.trim() ?? '';
-    if (text.isEmpty) return 'Email wajib diisi';
-    if (!text.contains('@') || !text.contains('.')) {
-      return 'Format email tidak valid';
+    if (text.isEmpty) return 'Username wajib diisi';
+    if (!RegExp(r'^[a-zA-Z0-9_]{3,}$').hasMatch(text)) {
+      return 'Username minimal 3 karakter dan hanya boleh huruf, angka, atau underscore';
     }
     return null;
   }
@@ -209,35 +209,20 @@ class _RegisterScreenState extends State<RegisterScreen> {
                           },
                         ),
 
-                        // Name field
-                        _buildFieldLabel('NAMA'),
+                        // Username field
+                        _buildFieldLabel('USERNAME'),
                         const SizedBox(height: 8),
                         TextFormField(
-                          controller: _nameController,
-                          keyboardType: TextInputType.name,
-                          textInputAction: TextInputAction.next,
-                          textCapitalization: TextCapitalization.words,
-                          decoration: const InputDecoration(
-                            hintText: 'Masukkan nama lengkap',
-                            prefixIcon: Icon(Icons.person_outline_rounded),
-                          ),
-                          validator: _validateName,
-                        ),
-                        const SizedBox(height: 16),
-
-                        // Email field
-                        _buildFieldLabel('EMAIL'),
-                        const SizedBox(height: 8),
-                        TextFormField(
-                          controller: _emailController,
-                          keyboardType: TextInputType.emailAddress,
+                          key: const ValueKey('register_username_field'),
+                          controller: _usernameController,
+                          keyboardType: TextInputType.text,
                           textInputAction: TextInputAction.next,
                           autocorrect: false,
                           decoration: const InputDecoration(
-                            hintText: 'Masukkan email aktif',
-                            prefixIcon: Icon(Icons.email_outlined),
+                            hintText: 'Masukkan username',
+                            prefixIcon: Icon(Icons.person_outline_rounded),
                           ),
-                          validator: _validateEmail,
+                          validator: _validateUsername,
                         ),
                         const SizedBox(height: 16),
 
@@ -325,26 +310,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         ),
                         const SizedBox(height: 16),
 
-                        Row(
-                          children: const [
-                            Expanded(child: Divider()),
-                            Padding(
-                              padding: EdgeInsets.symmetric(horizontal: 12),
-                              child: Text('atau'),
-                            ),
-                            Expanded(child: Divider()),
-                          ],
-                        ),
-                        const SizedBox(height: 16),
-
-                        SizedBox(
-                          width: double.infinity,
-                          child: OutlinedButton.icon(
-                            onPressed: _registerWithGoogle,
-                            icon: const Icon(Icons.g_mobiledata_rounded),
-                            label: const Text('Daftar dengan Google'),
-                          ),
-                        ),
                       ],
                     ),
                   ),

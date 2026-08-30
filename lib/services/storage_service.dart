@@ -8,6 +8,8 @@ class StorageService {
   static const String _keySettings = 'tka_settings';
   static const String _keyUsername = 'tka_username';
   static const String _keyHistory = 'tka_history';
+  static const String _keyAccounts = 'tka_accounts';
+  static const String _keySessionUid = 'tka_session_uid';
 
   static SharedPreferences? _prefs;
 
@@ -74,7 +76,57 @@ class StorageService {
     await _requirePrefs.setString(_keyUsername, trimmed);
   }
 
+  static List<Map<String, dynamic>> getAccounts() {
+    final raw = _prefs?.getString(_keyAccounts);
+    if (raw == null || raw.isEmpty) return const [];
+    try {
+      final decoded = jsonDecode(raw);
+      if (decoded is! List) return const [];
+      return decoded
+          .map((item) => Map<String, dynamic>.from(item as Map))
+          .toList();
+    } catch (_) {
+      return const [];
+    }
+  }
+
+  static Future<void> saveAccounts(List<Map<String, dynamic>> accounts) async {
+    await _requirePrefs.setString(_keyAccounts, jsonEncode(accounts));
+  }
+
+  static Map<String, dynamic>? getAccountByUid(String uid) {
+    for (final account in getAccounts()) {
+      if (account['uid'] == uid) return account;
+    }
+    return null;
+  }
+
+  static Map<String, dynamic>? getAccountByUsername(String username) {
+    final normalized = username.trim().toLowerCase();
+    for (final account in getAccounts()) {
+      if (account['username'] == normalized) return account;
+    }
+    return null;
+  }
+
+  static Future<void> setSessionUid(String uid) async {
+    await _requirePrefs.setString(_keySessionUid, uid);
+  }
+
+  static String? getSessionUid() => _prefs?.getString(_keySessionUid);
+
+  static Future<void> clearSession() async {
+    await _requirePrefs.remove(_keySessionUid);
+  }
+
   static List<ExamResult> getHistory() {
+    final history = _getAllHistory();
+    final sessionUid = getSessionUid();
+    if (sessionUid == null || sessionUid.isEmpty) return history;
+    return history.where((result) => result.uid == sessionUid).toList();
+  }
+
+  static List<ExamResult> _getAllHistory() {
     final raw = _prefs?.getString(_keyHistory);
     if (raw == null || raw.isEmpty) return const [];
 
@@ -90,7 +142,15 @@ class StorageService {
   }
 
   static Future<void> saveHistory(List<ExamResult> results) async {
-    final payload = results.map((e) => e.toJson()).toList();
+    final sessionUid = getSessionUid();
+    final existing = _getAllHistory();
+    final merged = sessionUid == null || sessionUid.isEmpty
+        ? results
+        : [
+            ...existing.where((result) => result.uid != sessionUid),
+            ...results,
+          ];
+    final payload = merged.map((e) => e.toJson()).toList();
     await _requirePrefs.setString(_keyHistory, jsonEncode(payload));
   }
 

@@ -1,5 +1,3 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
-
 class QuestionBreakdown {
   final int id;
   final String question;
@@ -47,7 +45,7 @@ class QuestionBreakdown {
 
 class ExamResult {
   final String id;
-  final String uid; // Firebase Auth UID
+  final String uid; // Local account ID
   final String username;
   final String subjectId;
   final String packageId;
@@ -112,30 +110,6 @@ class ExamResult {
         'breakdown': breakdown.map((b) => b.toJson()).toList(),
       };
 
-  /// Convert to Firestore-friendly map (uses server timestamp for completedAt)
-  Map<String, dynamic> toFirestore() => {
-        'id': id,
-        'uid': uid,
-        'username': username,
-        'subjectId': subjectId,
-        'packageId': packageId,
-        'packageName': packageName,
-        'score': score,
-        'correct': correct,
-        'wrong': wrong,
-        'empty': empty,
-        'rawScore': rawScore,
-        'maxPossibleScore': maxPossibleScore,
-        'durationSeconds': durationSeconds,
-        'startedAt': startedAt,
-        'completedAt': completedAt,
-        'completedAtTimestamp': FieldValue.serverTimestamp(),
-        'answers': answers.map((k, v) => MapEntry(k.toString(), v)),
-        'flaggedQuestions': flaggedQuestions,
-        'warningsCount': warningsCount,
-        // Note: breakdown is not stored to Firestore to save space (can be re-computed)
-      };
-
   factory ExamResult.fromJson(Map<String, dynamic> json) {
     Map<int, String> parsedAnswers = {};
     if (json['answers'] != null) {
@@ -173,42 +147,4 @@ class ExamResult {
     );
   }
 
-  factory ExamResult.fromFirestore(Map<String, dynamic> json) {
-    Map<int, String> parsedAnswers = {};
-    if (json['answers'] != null) {
-      (json['answers'] as Map).forEach((k, v) {
-        parsedAnswers[int.parse(k.toString())] = v.toString();
-      });
-    }
-
-    String completedAt = json['completedAt'] as String? ?? '';
-    if (completedAt.isEmpty && json['completedAtTimestamp'] is Timestamp) {
-      completedAt =
-          (json['completedAtTimestamp'] as Timestamp).toDate().toIso8601String();
-    }
-
-    return ExamResult(
-      id: json['id'] as String? ?? '',
-      uid: json['uid'] as String? ?? '',
-      username: json['username'] as String? ?? '',
-      subjectId: json['subjectId'] as String? ?? '',
-      packageId: json['packageId'] as String? ?? '',
-      packageName: json['packageName'] as String? ?? '',
-      score: json['score'] as int? ?? 0,
-      correct: json['correct'] as int? ?? 0,
-      wrong: json['wrong'] as int? ?? 0,
-      empty: json['empty'] as int? ?? 0,
-      rawScore: json['rawScore'] as int? ?? 0,
-      maxPossibleScore: json['maxPossibleScore'] as int? ?? 100,
-      durationSeconds: json['durationSeconds'] as int? ?? 0,
-      startedAt: json['startedAt'] as String? ?? '',
-      completedAt: completedAt,
-      answers: parsedAnswers,
-      flaggedQuestions: json['flaggedQuestions'] != null
-          ? List<int>.from(json['flaggedQuestions'])
-          : [],
-      warningsCount: json['warningsCount'] as int? ?? 0,
-      breakdown: [], // Not stored in Firestore
-    );
-  }
 }

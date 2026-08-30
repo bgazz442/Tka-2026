@@ -74,7 +74,7 @@ class SettingsScreen extends StatelessWidget {
                         ),
                         const SizedBox(height: 2),
                         const Text(
-                          'Akun Firebase • Tap untuk lihat profil',
+                          'Akun lokal • Tap untuk lihat profil',
                           style: TextStyle(
                             fontSize: 12,
                             color: AppConstants.textSecondary,

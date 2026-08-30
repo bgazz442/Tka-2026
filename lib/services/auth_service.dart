@@ -1,184 +1,133 @@
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:flutter/foundation.dart';
-import 'package:google_sign_in/google_sign_in.dart';
+import 'dart:convert';
+import 'dart:math';
+
+import 'package:crypto/crypto.dart';
+
 import 'biometric_service.dart';
-import 'firestore_service.dart';
+import 'storage_service.dart';
+
+class LocalUser {
+  final String uid;
+  final String username;
+  final String name;
+
+  const LocalUser({
+    required this.uid,
+    required this.username,
+    required this.name,
+  });
+}
 
 class AuthService {
-  final FirebaseAuth _auth = FirebaseAuth.instance;
-  final FirestoreService _firestore = FirestoreService();
+  LocalUser? _currentUser;
 
-  User? get currentUser => _auth.currentUser;
-  Stream<User?> get authStateChanges => _auth.authStateChanges();
-  bool get isLoggedIn => _auth.currentUser != null;
+  LocalUser? get currentUser => _currentUser;
+  bool get isLoggedIn => _currentUser != null;
 
-  static String normalizeEmail(String email) => email.trim();
+  Future<LocalUser?> restoreSession() async {
+    final uid = StorageService.getSessionUid();
+    if (uid == null) return null;
+    final account = StorageService.getAccountByUid(uid);
+    if (account == null) {
+      await StorageService.clearSession();
+      return null;
+    }
+    _currentUser = _userFromAccount(account);
+    await StorageService.setUsername(_currentUser!.username);
+    return _currentUser;
+  }
 
-  Future<String?> registerWithEmail({
-    required String name,
-    required String email,
+  Future<String?> register({
+    required String username,
     required String password,
   }) async {
-    final cleanedName = name.trim();
-    final cleanedEmail = normalizeEmail(email);
-
-    if (cleanedName.isEmpty) return 'Nama wajib diisi.';
-    if (cleanedEmail.isEmpty || !cleanedEmail.contains('@')) {
-      return 'Format email tidak valid.';
+    final normalized = username.trim().toLowerCase();
+    if (!RegExp(r'^[a-zA-Z0-9_]{3,}$').hasMatch(normalized)) {
+      return 'Username minimal 3 karakter dan hanya boleh huruf, angka, atau underscore.';
     }
-    if (password.isEmpty) return 'Password wajib diisi.';
     if (password.length < 6) return 'Password minimal 6 karakter.';
-
-    try {
-      final credential = await _auth.createUserWithEmailAndPassword(
-        email: cleanedEmail,
-        password: password,
-      );
-
-      final uid = credential.user!.uid;
-      await _firestore.ensureUserProfile(
-        uid: uid,
-        name: cleanedName,
-        email: cleanedEmail,
-      );
-      return null;
-    } on FirebaseAuthException catch (e) {
-      return _parseAuthError(e);
-    } catch (e) {
-      debugPrint('Register email failed: $e');
-      return 'Terjadi kesalahan. Silakan coba lagi.';
+    if (StorageService.getAccountByUsername(normalized) != null) {
+      return 'Username sudah digunakan di perangkat ini.';
     }
+
+    final user = LocalUser(
+      uid: _createLocalUid(),
+      username: normalized,
+      name: username.trim(),
+    );
+    final accounts = StorageService.getAccounts()
+      ..add({
+        'uid': user.uid,
+        'username': user.username,
+        'name': user.name,
+        'passwordSalt': _createSalt(),
+        'createdAt': DateTime.now().toIso8601String(),
+      });
+    accounts.last['passwordHash'] = _hashPassword(
+      password,
+      accounts.last['passwordSalt'] as String,
+    );
+    await StorageService.saveAccounts(accounts);
+    await _activate(user);
+    return null;
   }
 
-  Future<String?> loginWithEmail({
-    required String email,
+  Future<String?> login({
+    required String username,
     required String password,
   }) async {
-    final cleanedEmail = normalizeEmail(email);
-
-    if (cleanedEmail.isEmpty || !cleanedEmail.contains('@')) {
-      return 'Format email tidak valid.';
+    final account = StorageService.getAccountByUsername(username);
+    final salt = account?['passwordSalt'] as String?;
+    if (account == null ||
+        salt == null ||
+        account['passwordHash'] != _hashPassword(password, salt)) {
+      return 'Username atau password salah.';
     }
-    if (password.isEmpty) return 'Password wajib diisi.';
-
-    try {
-      await _auth.signInWithEmailAndPassword(
-        email: cleanedEmail,
-        password: password,
-      );
-      return null;
-    } on FirebaseAuthException catch (e) {
-      return _parseAuthError(e);
-    } catch (e) {
-      debugPrint('Login email failed: $e');
-      return 'Terjadi kesalahan. Silakan coba lagi.';
-    }
+    await _activate(_userFromAccount(account));
+    return null;
   }
 
-  Future<String?> signInWithGoogle() async {
-    try {
-      if (kIsWeb) {
-        final provider = GoogleAuthProvider();
-        final userCredential = await _auth.signInWithPopup(provider);
-        final user = userCredential.user;
-        if (user == null) {
-          return 'Login Google gagal.';
-        }
-
-        await _firestore.ensureUserProfile(
-          uid: user.uid,
-          name: user.displayName ?? user.email?.split('@').first ?? 'User',
-          email: user.email ?? '',
-        );
-        return null;
-      }
-
-      final googleSignIn = GoogleSignIn();
-      final googleUser = await googleSignIn.signIn();
-      if (googleUser == null) {
-        return 'Google Sign-In dibatalkan.';
-      }
-
-      final googleAuth = await googleUser.authentication;
-      final credential = GoogleAuthProvider.credential(
-        accessToken: googleAuth.accessToken,
-        idToken: googleAuth.idToken,
-      );
-
-      final userCredential = await _auth.signInWithCredential(credential);
-      final user = userCredential.user;
-      if (user == null) {
-        return 'Login Google gagal.';
-      }
-
-      await _firestore.ensureUserProfile(
-        uid: user.uid,
-        name: user.displayName ?? user.email?.split('@').first ?? 'User',
-        email: user.email ?? '',
-      );
-      return null;
-    } on FirebaseAuthException catch (e) {
-      return _parseAuthError(e);
-    } catch (e) {
-      debugPrint('Google sign in failed: $e');
-      return 'Google Sign-In gagal. Coba lagi.';
-    }
-  }
-
-  Future<String?> registerWithGoogle() async {
-    return signInWithGoogle();
-  }
-
-  Future<String?> resetPassword(String email) async {
-    final cleanedEmail = normalizeEmail(email);
-    if (cleanedEmail.isEmpty || !cleanedEmail.contains('@')) {
-      return 'Format email tidak valid.';
-    }
-
-    try {
-      await _auth.sendPasswordResetEmail(email: cleanedEmail);
-      return null;
-    } on FirebaseAuthException catch (e) {
-      return _parseAuthError(e);
-    } catch (e) {
-      debugPrint('Reset password failed: $e');
-      return 'Gagal mengirim reset password.';
-    }
+  Future<bool> loginWithBiometric() async {
+    final uid = await BiometricService.getEnabledUid();
+    if (uid == null || uid.isEmpty) return false;
+    final account = StorageService.getAccountByUid(uid);
+    if (account == null || !await BiometricService.authenticate()) return false;
+    await _activate(_userFromAccount(account));
+    return true;
   }
 
   Future<void> logout() async {
-    try {
-      await GoogleSignIn().signOut();
-    } catch (_) {}
-    final enabledUid = await BiometricService.getEnabledUid();
-    if (enabledUid == _auth.currentUser?.uid) {
-      await BiometricService.disable();
-    }
-    await _auth.signOut();
+    final uid = _currentUser?.uid;
+    _currentUser = null;
+    await StorageService.clearSession();
+    if (uid != null) await BiometricService.disable();
   }
 
-  static String _parseAuthError(FirebaseAuthException e) {
-    switch (e.code) {
-      case 'invalid-email':
-        return 'Format email tidak valid.';
-      case 'user-disabled':
-        return 'Akun ini telah dinonaktifkan.';
-      case 'user-not-found':
-      case 'wrong-password':
-      case 'invalid-credential':
-        return 'Email atau password salah.';
-      case 'email-already-in-use':
-        return 'Email tersebut sudah terdaftar. Silakan login.';
-      case 'weak-password':
-        return 'Password terlalu lemah. Gunakan minimal 6 karakter.';
-      case 'too-many-requests':
-        return 'Terlalu banyak percobaan. Coba lagi nanti.';
-      case 'network-request-failed':
-        return 'Tidak ada koneksi internet.';
-      case 'operation-not-allowed':
-        return 'Metode login belum diaktifkan di Firebase.';
-      default:
-        return 'Terjadi kesalahan autentikasi. Silakan coba lagi.';
-    }
+  Future<void> _activate(LocalUser user) async {
+    _currentUser = user;
+    await StorageService.setSessionUid(user.uid);
+    await StorageService.setUsername(user.username);
+  }
+
+  LocalUser _userFromAccount(Map<String, dynamic> account) => LocalUser(
+        uid: account['uid'] as String,
+        username: account['username'] as String,
+        name: account['name'] as String? ?? account['username'] as String,
+      );
+
+  static String _hashPassword(String password, String salt) => sha256
+      .convert(utf8.encode('tka-local-v2:$salt:$password'))
+      .toString();
+
+  static String _createSalt() {
+    final random = Random.secure();
+    final bytes = List<int>.generate(16, (_) => random.nextInt(256));
+    return base64UrlEncode(bytes).replaceAll('=', '');
+  }
+
+  static String _createLocalUid() {
+    final random = Random.secure();
+    final bytes = List<int>.generate(16, (_) => random.nextInt(256));
+    return base64UrlEncode(bytes).replaceAll('=', '');
   }
 }

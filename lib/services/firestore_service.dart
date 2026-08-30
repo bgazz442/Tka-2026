@@ -1,20 +1,13 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
-import '../models/user_profile.dart';
 import '../models/exam_result.dart';
 import '../models/leaderboard_entry.dart';
+import '../models/user_profile.dart';
+import 'storage_service.dart';
 
+/// Local data facade retained for existing screen compatibility.
+/// Data is device-local and is not a global online leaderboard.
 class FirestoreService {
-  final FirebaseFirestore _db = FirebaseFirestore.instance;
-
-  CollectionReference get _users => _db.collection('users');
-  CollectionReference get _usernames => _db.collection('usernames');
-  CollectionReference get _examResults => _db.collection('examResults');
-  CollectionReference _leaderboardEntries(String subjectId) =>
-      _db.collection('leaderboard').doc(subjectId).collection('entries');
-
   Future<bool> checkUsernameAvailable(String normalizedUsername) async {
-    final doc = await _usernames.doc(normalizedUsername).get();
-    return !doc.exists;
+    return StorageService.getAccountByUsername(normalizedUsername) == null;
   }
 
   Future<void> createUserProfile({
@@ -23,316 +16,112 @@ class FirestoreService {
     required String? name,
     required String? email,
     String? normalizedUsername,
-  }) async {
-    final now = Timestamp.now();
-    final resolvedName = (name ?? username).trim();
-    final resolvedUsername = (username.trim().isNotEmpty
-            ? username.trim()
-            : resolvedName)
-        .trim();
-    final batch = _db.batch();
-
-    batch.set(_users.doc(uid), {
-      'uid': uid,
-      'username': resolvedUsername,
-      'name': resolvedName,
-      'email': (email ?? '').trim(),
-      'createdAt': now,
-      'updatedAt': now,
-    }, SetOptions(merge: true));
-
-    if (normalizedUsername != null && normalizedUsername.isNotEmpty) {
-      batch.set(_usernames.doc(normalizedUsername), {
-        'uid': uid,
-        'reservedAt': now,
-      }, SetOptions(merge: true));
-    }
-
-    await batch.commit();
-  }
+  }) async {}
 
   Future<UserProfile?> ensureUserProfile({
     required String uid,
     required String name,
     required String email,
-  }) async {
-    final doc = await _users.doc(uid).get();
-    final now = Timestamp.now();
-    final resolvedName = name.trim().isNotEmpty ? name.trim() : 'User';
-    final resolvedEmail = email.trim();
-
-    if (!doc.exists) {
-      final profile = UserProfile(
-        uid: uid,
-        username: resolvedName,
-        name: resolvedName,
-        email: resolvedEmail,
-        createdAt: now.toDate(),
-        updatedAt: now.toDate(),
-      );
-      await _users.doc(uid).set(profile.toJson(), SetOptions(merge: true));
-      return profile;
-    }
-
-    final data = doc.data() as Map<String, dynamic>;
-    final existingName = (data['name'] as String?) ??
-        (data['username'] as String?) ??
-        resolvedName;
-    final existingEmail = (data['email'] as String?) ?? resolvedEmail;
-
-    final updated = {
-      'uid': uid,
-      'username': existingName,
-      'name': existingName,
-      'email': existingEmail,
-      'updatedAt': now,
-    };
-
-    await _users.doc(uid).set(updated, SetOptions(merge: true));
-    return getUserProfile(uid);
-  }
+  }) async => getUserProfile(uid);
 
   Future<UserProfile?> getUserProfile(String uid) async {
-    try {
-      final doc = await _users.doc(uid).get();
-      if (!doc.exists) return null;
-      return UserProfile.fromJson(doc.data() as Map<String, dynamic>);
-    } catch (e) {
-      return null;
-    }
-  }
-
-  /// Stream user profile for realtime updates.
-  Stream<UserProfile?> streamUserProfile(String uid) {
-    return _users.doc(uid).snapshots().map((doc) {
-      if (!doc.exists) return null;
-      return UserProfile.fromJson(doc.data() as Map<String, dynamic>);
-    });
-  }
-
-  // ── Exam Results ───────────────────────────────────────────
-
-  /// Save an exam result to Firestore.
-  /// Also updates leaderboard best score.
-  Future<void> saveExamResult(ExamResult result) async {
-    // Save result document
-    await _examResults.doc(result.id).set(result.toFirestore());
-
-    // Update leaderboard
-    await _updateLeaderboard(
-      uid: result.uid,
-      username: result.username,
-      subjectId: result.subjectId,
-      score: result.score,
-      durationSeconds: result.durationSeconds,
+    final account = StorageService.getAccountByUid(uid);
+    if (account == null) return null;
+    final createdAt = DateTime.tryParse(account['createdAt'] as String? ?? '') ??
+        DateTime.now();
+    return UserProfile(
+      uid: uid,
+      username: account['username'] as String,
+      name: account['name'] as String? ?? account['username'] as String,
+      email: '',
+      createdAt: createdAt,
+      updatedAt: DateTime.now(),
     );
-
-    // Update user stats in profile
-    await _updateUserStats(uid: result.uid, result: result);
   }
 
-  /// Stream user's exam history (most recent first, limit 100).
-  Stream<List<ExamResult>> streamUserHistory(String uid) {
-    return _examResults
-        .where('uid', isEqualTo: uid)
-        .orderBy('completedAtTimestamp', descending: true)
-        .limit(100)
-        .snapshots()
-        .map((snapshot) => snapshot.docs
-            .map((doc) =>
-                ExamResult.fromFirestore(doc.data() as Map<String, dynamic>))
-            .toList());
+  Stream<UserProfile?> streamUserProfile(String uid) async* {
+    yield await getUserProfile(uid);
   }
 
-  /// Get user history for a specific subject.
+  Future<void> saveExamResult(ExamResult result) async {
+    await StorageService.appendHistory(result);
+  }
+
+  Stream<List<ExamResult>> streamUserHistory(String uid) async* {
+    yield StorageService.getHistory().where((item) => item.uid == uid).toList();
+  }
+
   Future<List<ExamResult>> getUserHistoryBySubject(
       String uid, String subjectId) async {
-    final snapshot = await _examResults
-        .where('uid', isEqualTo: uid)
-        .where('subjectId', isEqualTo: subjectId)
-        .orderBy('completedAtTimestamp', descending: true)
-        .get();
-    return snapshot.docs
-        .map((doc) =>
-            ExamResult.fromFirestore(doc.data() as Map<String, dynamic>))
+    return StorageService.getHistory()
+        .where((item) => item.uid == uid && item.subjectId == subjectId)
         .toList();
   }
 
-  // ── Leaderboard ────────────────────────────────────────────
-
-  /// Stream leaderboard for a subject (top 100, sorted by score DESC, duration ASC).
-  Stream<List<LeaderboardEntry>> streamLeaderboard(String subjectId) {
-    return _leaderboardEntries(subjectId)
-        .orderBy('bestScore', descending: true)
-        .orderBy('bestDurationSeconds', descending: false)
-        .limit(100)
-        .snapshots()
-        .map((snapshot) => snapshot.docs
-            .asMap()
-            .entries
-            .map((entry) {
-              final leaderboardEntry = LeaderboardEntry.fromFirestore(
-                  entry.value, subjectId);
-              return leaderboardEntry.copyWith(rank: entry.key + 1);
-            })
-            .toList());
-  }
-
-  /// Get user's rank in a subject leaderboard.
-  Future<int?> getUserRank(String uid, String subjectId) async {
-    try {
-      // Get the user's best score first
-      final userDoc =
-          await _leaderboardEntries(subjectId).doc(uid).get();
-      if (!userDoc.exists) return null;
-
-      final userData = userDoc.data() as Map<String, dynamic>;
-      final userScore = userData['bestScore'] as int? ?? 0;
-      final userDuration = userData['bestDurationSeconds'] as int? ?? 0;
-
-      // Count how many entries have a better score OR same score but better time
-      final betterScoreQuery = await _leaderboardEntries(subjectId)
-          .where('bestScore', isGreaterThan: userScore)
-          .count()
-          .get();
-
-      final sameBetterTimeQuery = await _leaderboardEntries(subjectId)
-          .where('bestScore', isEqualTo: userScore)
-          .where('bestDurationSeconds', isLessThan: userDuration)
-          .count()
-          .get();
-
-      final rank = (betterScoreQuery.count ?? 0) +
-          (sameBetterTimeQuery.count ?? 0) +
-          1;
-      return rank;
-    } catch (e) {
-      return null;
+  Stream<List<LeaderboardEntry>> streamLeaderboard(String subjectId) async* {
+    final entries = <String, LeaderboardEntry>{};
+    for (final result in StorageService.getHistoryBySubject(subjectId)) {
+      final current = entries[result.uid];
+      if (current == null || result.score > current.score ||
+          (result.score == current.score &&
+              result.durationSeconds < current.durationSeconds)) {
+        entries[result.uid] = LeaderboardEntry(
+          uid: result.uid,
+          username: result.username,
+          subjectId: subjectId,
+          score: result.score,
+          durationSeconds: result.durationSeconds,
+          updatedAt: DateTime.tryParse(result.completedAt),
+        );
+      }
     }
+    final sorted = entries.values.toList()
+      ..sort((a, b) {
+        final scoreOrder = b.score.compareTo(a.score);
+        return scoreOrder != 0
+            ? scoreOrder
+            : a.durationSeconds.compareTo(b.durationSeconds);
+      });
+    yield [
+      for (var index = 0; index < sorted.length; index++)
+        sorted[index].copyWith(rank: index + 1),
+    ];
   }
 
-  /// Get ranks for all subjects at once.
+  Future<int?> getUserRank(String uid, String subjectId) async {
+    final entries = await streamLeaderboard(subjectId).first;
+    final index = entries.indexWhere((entry) => entry.uid == uid);
+    return index < 0 ? null : index + 1;
+  }
+
   Future<Map<String, int?>> getAllSubjectRanks(
       String uid, List<String> subjectIds) async {
-    final Map<String, int?> ranks = {};
-    for (final subjectId in subjectIds) {
-      ranks[subjectId] = await getUserRank(uid, subjectId);
-    }
-    return ranks;
+    return {
+      for (final subjectId in subjectIds)
+        subjectId: await getUserRank(uid, subjectId),
+    };
   }
 
-  // ── Internal: Update Leaderboard ───────────────────────────
-
-  Future<void> _updateLeaderboard({
-    required String uid,
-    required String username,
-    required String subjectId,
-    required int score,
-    required int durationSeconds,
-  }) async {
-    final entryRef = _leaderboardEntries(subjectId).doc(uid);
-
-    await _db.runTransaction((transaction) async {
-      final snapshot = await transaction.get(entryRef);
-
-      if (!snapshot.exists) {
-        // First entry for this user in this subject
-        transaction.set(entryRef, {
-          'uid': uid,
-          'username': username,
-          'bestScore': score,
-          'bestDurationSeconds': durationSeconds,
-          'updatedAt': FieldValue.serverTimestamp(),
-        });
-      } else {
-        final data = snapshot.data() as Map<String, dynamic>;
-        final currentBest = data['bestScore'] as int? ?? 0;
-        final currentDuration = data['bestDurationSeconds'] as int? ?? 0;
-
-        // Only update if new score is better, or same score with better time
-        if (score > currentBest ||
-            (score == currentBest && durationSeconds < currentDuration)) {
-          transaction.update(entryRef, {
-            'username': username, // update in case username changed
-            'bestScore': score,
-            'bestDurationSeconds': durationSeconds,
-            'updatedAt': FieldValue.serverTimestamp(),
-          });
-        } else {
-          // Still update username if it changed
-          transaction.update(entryRef, {
-            'username': username,
-            'updatedAt': FieldValue.serverTimestamp(),
-          });
-        }
-      }
-    });
-  }
-
-  // ── Internal: Update User Stats ────────────────────────────
-
-  Future<void> _updateUserStats(
-      {required String uid, required ExamResult result}) async {
-    // Increment total tryouts using server-side transaction
-    await _db.runTransaction((transaction) async {
-      final userRef = _users.doc(uid);
-      final snapshot = await transaction.get(userRef);
-      if (!snapshot.exists) return;
-
-      final data = snapshot.data() as Map<String, dynamic>;
-      final totalTryouts = (data['totalTryouts'] as int? ?? 0) + 1;
-      final totalCorrect =
-          (data['totalCorrect'] as int? ?? 0) + result.correct;
-      final totalQuestions =
-          (data['totalQuestions'] as int? ?? 0) + result.totalQuestions;
-      final currentBest = data['overallBestScore'] as int? ?? 0;
-      final newBest = result.score > currentBest ? result.score : currentBest;
-
-      transaction.update(userRef, {
-        'totalTryouts': totalTryouts,
-        'totalCorrect': totalCorrect,
-        'totalQuestions': totalQuestions,
-        'overallBestScore': newBest,
-        'updatedAt': FieldValue.serverTimestamp(),
-      });
-    });
-  }
-
-  // ── User Stats (aggregated) ────────────────────────────────
-
-  /// Get aggregated user stats for home screen.
   Future<Map<String, dynamic>?> getUserStats(String uid) async {
-    try {
-      final doc = await _users.doc(uid).get();
-      if (!doc.exists) return null;
-      final data = doc.data() as Map<String, dynamic>;
-
-      final totalTryouts = data['totalTryouts'] as int? ?? 0;
-      if (totalTryouts == 0) return null;
-
-      return {
-        'totalTryouts': totalTryouts,
-        'totalQuestions': data['totalQuestions'] as int? ?? 0,
-        'overallBestScore': data['overallBestScore'] as int? ?? 0,
-      };
-    } catch (e) {
-      return null;
-    }
+    final items = StorageService.getHistory().where((item) => item.uid == uid).toList();
+    if (items.isEmpty) return null;
+    return {
+      'totalTryouts': items.length,
+      'totalQuestions': items.fold<int>(0, (sum, item) => sum + item.totalQuestions),
+      'overallBestScore': items.map((item) => item.score).reduce((a, b) => a > b ? a : b),
+    };
   }
 
-  /// Get stats for a specific subject.
   Future<Map<String, dynamic>?> getSubjectStats(
       String uid, String subjectId) async {
-    try {
-      final snapshot = await _leaderboardEntries(subjectId).doc(uid).get();
-      if (!snapshot.exists) return null;
-      final data = snapshot.data() as Map<String, dynamic>;
-      return {
-        'bestScore': data['bestScore'] as int? ?? 0,
-        'bestDurationSeconds': data['bestDurationSeconds'] as int? ?? 0,
-      };
-    } catch (e) {
-      return null;
-    }
+    final items = StorageService.getHistory()
+        .where((item) => item.uid == uid && item.subjectId == subjectId)
+        .toList();
+    if (items.isEmpty) return null;
+    final best = items.map((item) => item.score).reduce((a, b) => a > b ? a : b);
+    final bestDuration = items.where((item) => item.score == best)
+        .map((item) => item.durationSeconds)
+        .reduce((a, b) => a < b ? a : b);
+    return {'bestScore': best, 'bestDurationSeconds': bestDuration};
   }
 }

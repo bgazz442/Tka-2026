@@ -7,7 +7,6 @@ import 'storage_service.dart';
 import 'scoring_service.dart';
 import 'timer_service.dart';
 import 'anti_cheat_service.dart';
-import 'firestore_service.dart';
 
 class ExamService extends ChangeNotifier {
   final ExamPackage package;
@@ -28,8 +27,6 @@ class ExamService extends ChangeNotifier {
   bool _submitGuard = false; // Prevents duplicate submissions
   ExamResult? _result;
   AntiCheatService? _antiCheatService;
-
-  final FirestoreService _firestoreService = FirestoreService();
 
   ExamService({
     required this.package,
@@ -215,13 +212,7 @@ class ExamService extends ChangeNotifier {
       resultId: resultId,
     );
 
-    // Save to Firestore (also updates leaderboard and user stats)
-    try {
-      await _firestoreService.saveExamResult(_result!);
-    } catch (e) {
-      // If Firestore save fails, we still show the result
-      // The local session is also cleared regardless
-    }
+    await StorageService.appendHistory(_result!);
 
     await StorageService.clearActiveExam();
 

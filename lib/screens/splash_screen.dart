@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart';
+import 'package:provider/provider.dart';
+import '../providers/auth_provider.dart';
 import '../utils/constants.dart';
 import 'login_screen.dart';
 import 'home_screen.dart';
@@ -41,13 +42,14 @@ class _SplashScreenState extends State<SplashScreen>
     _routeTimer = Timer(const Duration(milliseconds: 2000), _checkInitialRoute);
   }
 
-  void _checkInitialRoute() {
+  Future<void> _checkInitialRoute() async {
     if (!mounted) return;
 
-    // Check Firebase Auth state for persistent login
-    final user = FirebaseAuth.instance.currentUser;
+    final auth = context.read<AuthProvider>();
+    await auth.initialize();
+    if (!mounted) return;
 
-    if (user != null) {
+    if (auth.isLoggedIn) {
       // User is authenticated → go to Home
       Navigator.of(context).pushReplacement(
         MaterialPageRoute(builder: (_) => const HomeScreen()),

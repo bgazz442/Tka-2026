@@ -1,5 +1,3 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
-
 class UserProfile {
   final String uid;
   final String username;
@@ -22,29 +20,22 @@ class UserProfile {
         'username': username,
         'name': name,
         'email': email,
-        'createdAt': Timestamp.fromDate(createdAt),
-        'updatedAt': Timestamp.fromDate(updatedAt),
+        'createdAt': createdAt.toIso8601String(),
+        'updatedAt': updatedAt.toIso8601String(),
       };
 
   factory UserProfile.fromJson(Map<String, dynamic> json) {
-    DateTime parseDate(dynamic val) {
-      if (val is Timestamp) return val.toDate();
-      if (val is String) return DateTime.tryParse(val) ?? DateTime.now();
-      return DateTime.now();
-    }
-
+    DateTime parseDate(dynamic value) =>
+        DateTime.tryParse(value?.toString() ?? '') ?? DateTime.now();
     final resolvedName = (json['name'] as String?) ??
         (json['username'] as String?) ??
         (json['displayName'] as String?) ??
         '';
-    final resolvedUsername = (json['username'] as String?) ?? resolvedName;
-    final resolvedEmail = (json['email'] as String?) ?? '';
-
     return UserProfile(
       uid: json['uid'] as String? ?? '',
-      username: resolvedUsername,
+      username: json['username'] as String? ?? resolvedName,
       name: resolvedName,
-      email: resolvedEmail,
+      email: json['email'] as String? ?? '',
       createdAt: parseDate(json['createdAt']),
       updatedAt: parseDate(json['updatedAt']),
     );

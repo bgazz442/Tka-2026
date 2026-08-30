@@ -14,13 +14,13 @@ class LoginScreen extends StatefulWidget {
 
 class _LoginScreenState extends State<LoginScreen> {
   final _formKey = GlobalKey<FormState>();
-  final _emailController = TextEditingController();
+  final _usernameController = TextEditingController();
   final _passwordController = TextEditingController();
   bool _obscurePassword = true;
 
   @override
   void dispose() {
-    _emailController.dispose();
+    _usernameController.dispose();
     _passwordController.dispose();
     super.dispose();
   }
@@ -32,11 +32,14 @@ class _LoginScreenState extends State<LoginScreen> {
     final auth = context.read<AuthProvider>();
     auth.clearError();
 
-    final success = await auth.loginWithEmail(
-      email: _emailController.text.trim(),
+    final success = await auth.login(
+      username: _usernameController.text.trim(),
       password: _passwordController.text,
     );
 
+    if (success && mounted) {
+      await _offerBiometric(auth);
+    }
     if (success && mounted) {
       Navigator.of(context).pushAndRemoveUntil(
         MaterialPageRoute(builder: (_) => const HomeScreen()),
@@ -45,15 +48,25 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
-  Future<void> _loginWithGoogle() async {
-    final auth = context.read<AuthProvider>();
-    final success = await auth.signInWithGoogle();
-    if (success && mounted) {
-      Navigator.of(context).pushAndRemoveUntil(
-        MaterialPageRoute(builder: (_) => const HomeScreen()),
-        (route) => false,
-      );
-    }
+  Future<void> _offerBiometric(AuthProvider auth) async {
+    final enable = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Aktifkan login biometrik?'),
+        content: const Text('Gunakan sidik jari atau biometrik perangkat untuk login berikutnya.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Nanti'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Aktifkan'),
+          ),
+        ],
+      ),
+    );
+    if (enable == true) await auth.enableBiometric();
   }
 
   Future<void> _loginWithBiometric() async {
@@ -65,37 +78,6 @@ class _LoginScreenState extends State<LoginScreen> {
         (route) => false,
       );
     }
-  }
-
-  Future<void> _resetPassword() async {
-    final email = _emailController.text.trim();
-    if (email.isEmpty || !email.contains('@')) {
-      final auth = context.read<AuthProvider>();
-      auth.clearError();
-      auth.setError('Masukkan email yang valid untuk reset password.');
-      return;
-    }
-
-    final auth = context.read<AuthProvider>();
-    final result = await auth.resetPassword(email);
-    if (!mounted) return;
-
-    if (result == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Link reset password telah dikirim ke email kamu.'),
-          backgroundColor: AppConstants.successColor,
-        ),
-      );
-      return;
-    }
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(result),
-        backgroundColor: AppConstants.dangerColor,
-      ),
-    );
   }
 
   @override
@@ -191,23 +173,25 @@ class _LoginScreenState extends State<LoginScreen> {
                           },
                         ),
 
-                        // Email field
-                        _buildFieldLabel('EMAIL'),
+                        // Username field
+                        _buildFieldLabel('USERNAME'),
                         const SizedBox(height: 8),
                         TextFormField(
-                          key: const ValueKey('login_email_field'),
-                          controller: _emailController,
-                          keyboardType: TextInputType.emailAddress,
+                          key: const ValueKey('login_username_field'),
+                          controller: _usernameController,
+                          keyboardType: TextInputType.text,
                           textInputAction: TextInputAction.next,
                           autocorrect: false,
                           decoration: const InputDecoration(
-                            hintText: 'Masukkan email',
-                            prefixIcon: Icon(Icons.email_outlined),
+                            hintText: 'Masukkan username',
+                            prefixIcon: Icon(Icons.person_outline_rounded),
                           ),
                           validator: (v) {
                             final value = v?.trim() ?? '';
-                            if (value.isEmpty) return 'Email wajib diisi';
-                            if (!value.contains('@')) return 'Format email tidak valid';
+                            if (value.isEmpty) return 'Username wajib diisi';
+                            if (!RegExp(r'^[a-zA-Z0-9_]{3,}$').hasMatch(value)) {
+                              return 'Username minimal 3 karakter.';
+                            }
                             return null;
                           },
                         ),
@@ -277,28 +261,6 @@ class _LoginScreenState extends State<LoginScreen> {
                         ),
                         const SizedBox(height: 16),
 
-                        Row(
-                          children: const [
-                            Expanded(child: Divider()),
-                            Padding(
-                              padding: EdgeInsets.symmetric(horizontal: 12),
-                              child: Text('atau'),
-                            ),
-                            Expanded(child: Divider()),
-                          ],
-                        ),
-                        const SizedBox(height: 16),
-
-                        SizedBox(
-                          width: double.infinity,
-                          child: OutlinedButton.icon(
-                            onPressed: _loginWithGoogle,
-                            icon: const Icon(Icons.g_mobiledata_rounded),
-                            label: const Text('Lanjut dengan Google'),
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-
                         SizedBox(
                           width: double.infinity,
                           child: OutlinedButton.icon(
@@ -309,13 +271,6 @@ class _LoginScreenState extends State<LoginScreen> {
                         ),
                         const SizedBox(height: 16),
 
-                        Align(
-                          alignment: Alignment.center,
-                          child: TextButton(
-                            onPressed: _resetPassword,
-                            child: const Text('Lupa password?'),
-                          ),
-                        ),
                       ],
                     ),
                   ),
@@ -424,8 +379,3 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 }
 
-// Extension to add id to widgets (for testing)
-extension WidgetId on TextFormField {
-  // ignore: unused_element
-  TextFormField get _self => this;
-}

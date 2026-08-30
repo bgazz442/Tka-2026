@@ -1,5 +1,3 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
-
 class LeaderboardEntry {
   final String uid;
   final String username;
@@ -42,30 +40,4 @@ class LeaderboardEntry {
       updatedAt: updatedAt ?? this.updatedAt,
     );
   }
-
-  /// Create from Firestore document
-  factory LeaderboardEntry.fromFirestore(
-      DocumentSnapshot doc, String subjectId) {
-    final data = doc.data() as Map<String, dynamic>;
-    DateTime? updatedAt;
-    if (data['updatedAt'] is Timestamp) {
-      updatedAt = (data['updatedAt'] as Timestamp).toDate();
-    }
-    return LeaderboardEntry(
-      uid: doc.id,
-      username: data['username'] as String? ?? 'Unknown',
-      subjectId: subjectId,
-      score: data['bestScore'] as int? ?? 0,
-      durationSeconds: data['bestDurationSeconds'] as int? ?? 0,
-      updatedAt: updatedAt,
-    );
-  }
-
-  Map<String, dynamic> toFirestore() => {
-        'uid': uid,
-        'username': username,
-        'bestScore': score,
-        'bestDurationSeconds': durationSeconds,
-        'updatedAt': FieldValue.serverTimestamp(),
-      };
 }
