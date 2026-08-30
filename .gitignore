@@ -43,28 +43,3 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
-/android/.gradle/
-/android/local.properties
-
-# IDE / tooling
-.idea/
-.vscode/
-.metadata
-*.iml
-*.ipr
-*.iws
-
-# Security / signing / credentials
-*.jks
-*.keystore
-key.properties
-*.p12
-*.pem
-*.crt
-*.key
-*.p8
-service-account*.json
-secrets.*
-.env
-.env.*
-

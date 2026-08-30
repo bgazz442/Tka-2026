@@ -1,62 +1,17 @@
-# TKA-2026
+# futureee
 
-TKA-2026 is a Flutter-based educational application focused on exam preparation,
-progress tracking, history, learning packages, and local leaderboard competition.
+A new Flutter project.
 
-## Features
+## Getting Started
 
-- Local username/password authentication
-- Hashed local password storage
-- Biometric quick login for Android
-- Local user profiles and sessions
-- Exam flow and result tracking
-- Progress and history data
-- Subject and package detail views
-- Device-local leaderboard derived from exam history
+This project is a starting point for a Flutter application.
 
-## Tech Stack
+A few resources to get you started if this is your first Flutter project:
 
-- Flutter
-- Dart
-- Provider
-- shared_preferences
-- crypto
-- local_auth
-- flutter_secure_storage
+- [Learn Flutter](https://docs.flutter.dev/get-started/learn-flutter)
+- [Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
+- [Flutter learning resources](https://docs.flutter.dev/reference/learning-resources)
 
-## Project Setup
-
-1. Install Flutter 3.44.8 and Android Studio.
-2. Run:
-
-```bash
-flutter pub get
-flutter analyze
-flutter run -d chrome
-```
-
-## Android Build
-
-```bash
-flutter build apk --debug
-flutter build apk --release
-```
-
-## GitHub Actions Android Build
-
-The workflow in `.github/workflows/build-apk.yml` runs on every push to `main`
-and can also be started from the Actions tab. It runs analysis, tests, and
-creates the release APK without Firebase configuration or GitHub secrets.
-
-The APK is uploaded as the `TKA-2026-APK` Actions artifact. Local accounts,
-exam history, progress, and leaderboard data remain on the device. A local
-leaderboard is not shared between devices.
-
-## Security Notes
-
-- Do not commit API keys, service account files, keystore files, or private credentials.
-- Passwords are stored as hashes; biometric unlock uses secure storage and the device biometric API.
-
-## Repository
-
-https://github.com/bgazz442/Tka-2026
+For help getting started with Flutter development, view the
+[online documentation](https://docs.flutter.dev/), which offers tutorials,
+samples, guidance on mobile development, and a full API reference.
