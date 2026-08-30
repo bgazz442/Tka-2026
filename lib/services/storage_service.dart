@@ -1,157 +1,151 @@
 import 'dart:convert';
-import 'package:shared_preferences/shared_preferences.dart';
+
+import 'package:hive_flutter/hive_flutter.dart';
 
 import '../models/exam_result.dart';
 
 class StorageService {
+  static const String _keyProfile = 'local_profile';
   static const String _keyActiveExam = 'tka_active_exam';
   static const String _keySettings = 'tka_settings';
-  static const String _keyUsername = 'tka_username';
   static const String _keyHistory = 'tka_history';
-  static const String _keyAccounts = 'tka_accounts';
   static const String _keySessionUid = 'tka_session_uid';
+  static const String _keyUsername = 'tka_username';
 
-  static SharedPreferences? _prefs;
+  static late Box _profileBox;
+  static late Box _settingsBox;
+  static late Box _historyBox;
+  static late Box _activeExamBox;
 
   static Future<void> init() async {
-    _prefs ??= await SharedPreferences.getInstance();
+    _profileBox = await Hive.openBox('futureee_profile_box');
+    _settingsBox = await Hive.openBox('futureee_settings_box');
+    _historyBox = await Hive.openBox('futureee_history_box');
+    _activeExamBox = await Hive.openBox('futureee_active_exam_box');
   }
 
-  static SharedPreferences get _requirePrefs {
-    if (_prefs == null) {
-      throw StateError('StorageService.init() must be called before use.');
-    }
-    return _prefs!;
+  static Future<void> resetAll() async {
+    await _profileBox.clear();
+    await _settingsBox.clear();
+    await _historyBox.clear();
+    await _activeExamBox.clear();
   }
+
+  static Map<String, dynamic>? getProfile() {
+    final profile = _profileBox.get(_keyProfile);
+    if (profile == null) return null;
+    if (profile is Map) {
+      return Map<String, dynamic>.from(profile);
+    }
+    return null;
+  }
+
+  static Future<void> saveProfile(Map<String, dynamic> profile) async {
+    final normalized = <String, dynamic>{
+      'profileId': profile['profileId'] ?? '',
+      'username': (profile['username'] ?? '').toString().trim(),
+      'email': (profile['email'] ?? '').toString().trim(),
+      'createdAt': profile['createdAt'] ?? DateTime.now().toIso8601String(),
+      'updatedAt': profile['updatedAt'] ?? DateTime.now().toIso8601String(),
+    };
+    await _profileBox.put(_keyProfile, normalized);
+    if (normalized['profileId'] != null && normalized['profileId'].toString().isNotEmpty) {
+      await setSessionUid(normalized['profileId'].toString());
+    }
+    if (normalized['username'] != null && normalized['username'].toString().isNotEmpty) {
+      await setUsername(normalized['username'].toString());
+    }
+  }
+
+  static bool hasProfile() => getProfile() != null;
 
   static Map<String, dynamic>? getActiveExam() {
-    final raw = _prefs?.getString(_keyActiveExam);
+    final raw = _activeExamBox.get(_keyActiveExam);
     if (raw == null) return null;
-    try {
-      final decoded = jsonDecode(raw);
-      return decoded is Map<String, dynamic>
-          ? decoded
-          : Map<String, dynamic>.from(decoded as Map);
-    } catch (_) {
-      return null;
-    }
+    if (raw is Map) return Map<String, dynamic>.from(raw);
+    return null;
   }
 
   static Future<void> saveActiveExam(Map<String, dynamic> sessionData) async {
-    await _requirePrefs.setString(_keyActiveExam, jsonEncode(sessionData));
+    await _activeExamBox.put(_keyActiveExam, sessionData);
   }
 
   static Future<void> clearActiveExam() async {
-    await _requirePrefs.remove(_keyActiveExam);
+    await _activeExamBox.delete(_keyActiveExam);
   }
 
   static Map<String, dynamic> getSettings() {
-    final raw = _prefs?.getString(_keySettings);
-    if (raw == null) return {'antiCheat': true};
-    try {
-      final decoded = jsonDecode(raw);
-      return decoded is Map<String, dynamic>
-          ? decoded
-          : Map<String, dynamic>.from(decoded as Map);
-    } catch (_) {
-      return {'antiCheat': true};
+    final settings = _settingsBox.get(_keySettings);
+    if (settings is Map) {
+      return Map<String, dynamic>.from(settings);
     }
+    return {'antiCheat': true, 'biometricEnabled': false};
   }
 
   static Future<void> saveSettings(Map<String, dynamic> settings) async {
-    await _requirePrefs.setString(_keySettings, jsonEncode(settings));
+    await _settingsBox.put(_keySettings, settings);
   }
 
-  static Future<void> clearLocalSession() async {
-    await _requirePrefs.remove(_keyActiveExam);
+  static Future<void> setBiometricEnabled(bool enabled) async {
+    final config = getSettings();
+    config['biometricEnabled'] = enabled;
+    await saveSettings(config);
   }
+
+  static bool isBiometricEnabled() => getSettings()['biometricEnabled'] == true;
 
   static String? getUsername() {
-    return _prefs?.getString(_keyUsername);
+    return _settingsBox.get(_keyUsername)?.toString();
   }
 
   static Future<void> setUsername(String username) async {
     final trimmed = username.trim();
     if (trimmed.isEmpty) return;
-    await _requirePrefs.setString(_keyUsername, trimmed);
+    await _settingsBox.put(_keyUsername, trimmed);
   }
 
   static List<Map<String, dynamic>> getAccounts() {
-    final raw = _prefs?.getString(_keyAccounts);
-    if (raw == null || raw.isEmpty) return const [];
-    try {
-      final decoded = jsonDecode(raw);
-      if (decoded is! List) return const [];
-      return decoded
-          .map((item) => Map<String, dynamic>.from(item as Map))
-          .toList();
-    } catch (_) {
-      return const [];
-    }
-  }
-
-  static Future<void> saveAccounts(List<Map<String, dynamic>> accounts) async {
-    await _requirePrefs.setString(_keyAccounts, jsonEncode(accounts));
+    final profile = getProfile();
+    if (profile == null) return const [];
+    return [Map<String, dynamic>.from(profile)];
   }
 
   static Map<String, dynamic>? getAccountByUid(String uid) {
-    for (final account in getAccounts()) {
-      if (account['uid'] == uid) return account;
-    }
-    return null;
+    final profile = getProfile();
+    if (profile == null || profile['profileId']?.toString() != uid) return null;
+    return Map<String, dynamic>.from(profile);
   }
 
   static Map<String, dynamic>? getAccountByUsername(String username) {
+    final profile = getProfile();
+    if (profile == null) return null;
     final normalized = username.trim().toLowerCase();
-    for (final account in getAccounts()) {
-      if (account['username'] == normalized) return account;
-    }
+    final current = profile['username']?.toString().trim().toLowerCase();
+    if (current == normalized) return Map<String, dynamic>.from(profile);
     return null;
   }
 
   static Future<void> setSessionUid(String uid) async {
-    await _requirePrefs.setString(_keySessionUid, uid);
+    await _settingsBox.put(_keySessionUid, uid);
   }
 
-  static String? getSessionUid() => _prefs?.getString(_keySessionUid);
+  static String? getSessionUid() => _settingsBox.get(_keySessionUid)?.toString();
 
   static Future<void> clearSession() async {
-    await _requirePrefs.remove(_keySessionUid);
+    await _settingsBox.delete(_keySessionUid);
   }
 
   static List<ExamResult> getHistory() {
-    final history = _getAllHistory();
-    final sessionUid = getSessionUid();
-    if (sessionUid == null || sessionUid.isEmpty) return history;
-    return history.where((result) => result.uid == sessionUid).toList();
-  }
-
-  static List<ExamResult> _getAllHistory() {
-    final raw = _prefs?.getString(_keyHistory);
-    if (raw == null || raw.isEmpty) return const [];
-
-    try {
-      final decoded = jsonDecode(raw);
-      if (decoded is! List) return const [];
-      return decoded
-          .map((item) => ExamResult.fromJson(Map<String, dynamic>.from(item as Map)))
-          .toList();
-    } catch (_) {
-      return const [];
-    }
+    final data = _historyBox.get(_keyHistory);
+    if (data is! List) return const [];
+    return data
+        .map((item) => ExamResult.fromJson(Map<String, dynamic>.from(item as Map)))
+        .toList();
   }
 
   static Future<void> saveHistory(List<ExamResult> results) async {
-    final sessionUid = getSessionUid();
-    final existing = _getAllHistory();
-    final merged = sessionUid == null || sessionUid.isEmpty
-        ? results
-        : [
-            ...existing.where((result) => result.uid != sessionUid),
-            ...results,
-          ];
-    final payload = merged.map((e) => e.toJson()).toList();
-    await _requirePrefs.setString(_keyHistory, jsonEncode(payload));
+    final payload = results.map((e) => e.toJson()).toList();
+    await _historyBox.put(_keyHistory, payload);
   }
 
   static Future<void> appendHistory(ExamResult result) async {
@@ -161,15 +155,11 @@ class StorageService {
   }
 
   static List<ExamResult> getHistoryBySubject(String subjectId) {
-    return getHistory()
-        .where((result) => result.subjectId == subjectId)
-        .toList();
+    return getHistory().where((result) => result.subjectId == subjectId).toList();
   }
 
   static List<ExamResult> getHistoryByPackage(String packageId) {
-    return getHistory()
-        .where((result) => result.packageId == packageId)
-        .toList();
+    return getHistory().where((result) => result.packageId == packageId).toList();
   }
 
   static Map<String, int> getBestScores() {
@@ -184,13 +174,9 @@ class StorageService {
   }
 
   static int? getBestScoreForPackage(String packageId) {
-    final best = getHistoryByPackage(packageId)
-        .map((e) => e.score)
-        .fold<int?>(null, (previous, score) {
-          if (previous == null || score > previous) return score;
-          return previous;
-        });
-    return best;
+    final values = getHistoryByPackage(packageId).map((e) => e.score);
+    if (values.isEmpty) return null;
+    return values.reduce((a, b) => a > b ? a : b);
   }
 
   static Map<String, dynamic>? getOverallStats() {
@@ -198,13 +184,17 @@ class StorageService {
     if (history.isEmpty) return null;
 
     final totalTryouts = history.length;
+    final totalQuestions = history.fold<int>(0, (sum, item) => sum + item.totalQuestions);
     final avgScore = history.fold<int>(0, (sum, item) => sum + item.score) / totalTryouts;
     final bestScore = history.map((item) => item.score).reduce((a, b) => a > b ? a : b);
+    final lowestScore = history.map((item) => item.score).reduce((a, b) => a < b ? a : b);
 
     return {
       'totalTryouts': totalTryouts,
+      'totalQuestions': totalQuestions,
       'avgScore': avgScore.round(),
       'bestScore': bestScore,
+      'lowestScore': lowestScore,
     };
   }
 
@@ -212,14 +202,21 @@ class StorageService {
     final history = getHistoryBySubject(subjectId);
     if (history.isEmpty) return null;
 
-    final avgScore = history.fold<int>(0, (sum, item) => sum + item.score) /
-        history.length;
+    final avgScore = history.fold<int>(0, (sum, item) => sum + item.score) / history.length;
     final bestScore = history.map((item) => item.score).reduce((a, b) => a > b ? a : b);
+    final lowestScore = history.map((item) => item.score).reduce((a, b) => a < b ? a : b);
 
     return {
       'bestScore': bestScore,
+      'lowestScore': lowestScore,
       'avgScore': avgScore.round(),
       'totalTryouts': history.length,
     };
+  }
+
+  static Future<void> clearLocalSession() async => clearActiveExam();
+  static Future<void> saveAccounts(List<Map<String, dynamic>> accounts) async {
+    final profile = accounts.isNotEmpty ? accounts.first : null;
+    if (profile != null) await saveProfile(profile);
   }
 }

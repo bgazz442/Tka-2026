@@ -1,10 +1,12 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
-import '../providers/auth_provider.dart';
+
+import '../services/biometric_service.dart';
+import '../services/storage_service.dart';
 import '../utils/constants.dart';
-import 'login_screen.dart';
+import 'biometric_setup_screen.dart';
 import 'home_screen.dart';
+import 'setup_profile_screen.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -23,43 +25,52 @@ class _SplashScreenState extends State<SplashScreen>
   @override
   void initState() {
     super.initState();
-
     _animController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 1200),
     );
-
     _scaleAnim = Tween<double>(begin: 0.8, end: 1.0).animate(
       CurvedAnimation(parent: _animController, curve: Curves.easeOutBack),
     );
-
     _fadeAnim = Tween<double>(begin: 0.0, end: 1.0).animate(
       CurvedAnimation(parent: _animController, curve: Curves.easeIn),
     );
-
     _animController.forward();
-
-    _routeTimer = Timer(const Duration(milliseconds: 2000), _checkInitialRoute);
+    _routeTimer = Timer(const Duration(milliseconds: 1600), _checkInitialRoute);
   }
 
   Future<void> _checkInitialRoute() async {
     if (!mounted) return;
 
-    final auth = context.read<AuthProvider>();
-    await auth.initialize();
+    final hasProfile = StorageService.hasProfile();
     if (!mounted) return;
 
-    if (auth.isLoggedIn) {
-      // User is authenticated → go to Home
+    if (!hasProfile) {
       Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (_) => const HomeScreen()),
+        MaterialPageRoute(builder: (_) => const SetupProfileScreen()),
       );
-    } else {
-      // Not authenticated → go to Login
-      Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (_) => const LoginScreen()),
-      );
+      return;
     }
+
+    final biometricEnabled = StorageService.isBiometricEnabled();
+    if (biometricEnabled) {
+      final biometricAvailable = await BiometricService.isBiometricAvailable();
+      if (biometricAvailable && mounted) {
+        final authenticated = await BiometricService.authenticate();
+        if (!mounted) return;
+        if (authenticated) {
+          Navigator.of(context).pushReplacement(
+            MaterialPageRoute(builder: (_) => const HomeScreen()),
+          );
+          return;
+        }
+      }
+    }
+
+    if (!mounted) return;
+    Navigator.of(context).pushReplacement(
+      MaterialPageRoute(builder: (_) => const HomeScreen()),
+    );
   }
 
   @override
@@ -81,7 +92,6 @@ class _SplashScreenState extends State<SplashScreen>
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                // App Logo
                 Container(
                   width: 100,
                   height: 100,
@@ -116,8 +126,6 @@ class _SplashScreenState extends State<SplashScreen>
                   ),
                 ),
                 const SizedBox(height: 24),
-
-                // App Name
                 const Text(
                   AppConstants.appName,
                   style: TextStyle(
@@ -128,8 +136,6 @@ class _SplashScreenState extends State<SplashScreen>
                   ),
                 ),
                 const SizedBox(height: 8),
-
-                // App Tagline
                 const Padding(
                   padding: EdgeInsets.symmetric(horizontal: 32),
                   child: Text(
@@ -143,8 +149,6 @@ class _SplashScreenState extends State<SplashScreen>
                   ),
                 ),
                 const SizedBox(height: 48),
-
-                // Loading indicator
                 const CircularProgressIndicator(
                   strokeWidth: 3,
                   valueColor: AlwaysStoppedAnimation<Color>(Colors.white),

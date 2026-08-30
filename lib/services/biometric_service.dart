@@ -2,6 +2,8 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:local_auth/local_auth.dart';
 
+import 'storage_service.dart';
+
 class BiometricService {
   static const _secureStorage = FlutterSecureStorage();
   static const _biometricEnabledKey = 'biometric_enabled_uid';
@@ -26,7 +28,7 @@ class BiometricService {
       if (!available) return false;
 
       final authenticated = await _localAuth.authenticate(
-        localizedReason: 'Lanjutkan dengan sidik jari / Face ID',
+        localizedReason: 'Lanjutkan dengan keamanan perangkat',
         biometricOnly: false,
         sensitiveTransaction: true,
         persistAcrossBackgrounding: false,
@@ -41,13 +43,16 @@ class BiometricService {
 
   static Future<void> enableForUid(String uid) async {
     await _secureStorage.write(key: _biometricEnabledKey, value: uid);
+    await StorageService.setBiometricEnabled(true);
   }
 
   static Future<String?> getEnabledUid() async {
-    return _secureStorage.read(key: _biometricEnabledKey);
+    final secureUid = await _secureStorage.read(key: _biometricEnabledKey);
+    return secureUid ?? StorageService.getSessionUid();
   }
 
   static Future<void> disable() async {
     await _secureStorage.delete(key: _biometricEnabledKey);
+    await StorageService.setBiometricEnabled(false);
   }
 }
