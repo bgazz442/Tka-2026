@@ -27,10 +27,9 @@ class BiometricService {
 
       final authenticated = await _localAuth.authenticate(
         localizedReason: 'Lanjutkan dengan sidik jari / Face ID',
-        options: const AuthenticationOptions(
-          stickyAuth: true,
-          biometricOnly: false,
-        ),
+        biometricOnly: false,
+        sensitiveTransaction: true,
+        persistAcrossBackgrounding: false,
       );
 
       return authenticated;
