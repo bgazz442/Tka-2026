@@ -1,72 +1,45 @@
-# Flutter Web - Build & Deploy to GitHub Pages
-
-name: Flutter Web Deploy
+name: Build Flutter APK
 
 on:
   push:
     branches:
       - main
 
-  pull_request:
-    branches:
-      - main
-
   workflow_dispatch:
-
-permissions:
-  contents: read
-  pages: write
-  id-token: write
-
-concurrency:
-  group: "pages"
-  cancel-in-progress: true
 
 jobs:
   build:
-    name: Build Flutter Web
+    name: Build APK
     runs-on: ubuntu-latest
 
     steps:
-      # Checkout repository
+      # 1. Ambil source code dari repository
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # Setup Flutter
+      # 2. Install Flutter
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
           channel: stable
           cache: true
 
-      # Get dependencies
+      # 3. Cek versi Flutter
+      - name: Flutter Doctor
+        run: flutter doctor -v
+
+      # 4. Install dependencies
       - name: Install dependencies
         run: flutter pub get
 
-      # Build Flutter Web
-      - name: Build Flutter Web
-        run: flutter build web --release --base-href "/futureee/"
+      # 5. Build APK Release
+      - name: Build APK
+        run: flutter build apk --release
 
-      # Setup GitHub Pages
-      - name: Setup Pages
-        uses: actions/configure-pages@v5
-
-      # Upload build
-      - name: Upload artifact
-        uses: actions/upload-pages-artifact@v3
+      # 6. Simpan APK sebagai artifact
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
         with:
-          path: build/web
-
-  deploy:
-    name: Deploy to GitHub Pages
-    needs: build
-    runs-on: ubuntu-latest
-
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-
-    steps:
-      - name: Deploy to GitHub Pages
-        id: deployment
-        uses: actions/deploy-pages@v4
+          name: futureee-release-apk
+          path: build/app/outputs/flutter-apk/app-release.apk
+          retention-days: 30
