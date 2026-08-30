@@ -25,4 +25,12 @@ if ! jq -e '.project_info.project_id and (.client | length > 0)' \
   exit 1
 fi
 
+if ! jq -e '[.client[]?.client_info.android_client_info.package_name] | index("com.example.futureee")' \
+  android/app/google-services.json >/dev/null; then
+  echo "The Firebase Android config does not contain package com.example.futureee."
+  echo "Download google-services.json for the Firebase Android app with this exact package name."
+  rm -f android/app/google-services.json
+  exit 1
+fi
+
 echo "android/app/google-services.json created from GitHub secret."
