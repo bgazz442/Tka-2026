@@ -80,7 +80,7 @@ class Question {
   // ─── Core logic ────────────────────────────────────────────────────────────
 
   /// Checks whether the given userAnswer is correct.
-  /// Supports String, List<String>, and null.
+  /// Supports `String`, `List<String>`, and null.
   bool isCorrect(dynamic userAnswer) {
     if (userAnswer == null) return false;
 

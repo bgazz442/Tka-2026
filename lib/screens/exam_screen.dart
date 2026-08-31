@@ -51,6 +51,7 @@ class _ExamContent extends StatefulWidget {
 
 class _ExamContentState extends State<_ExamContent> {
   int _lastWarningCount = 0;
+  bool _hasNavigated = false;
 
   @override
   Widget build(BuildContext context) {
@@ -66,7 +67,8 @@ class _ExamContentState extends State<_ExamContent> {
         _showViolationWarningDialog(context, exam.warningsCount);
       }
 
-      if (exam.result != null) {
+      if (exam.result != null && !_hasNavigated) {
+        _hasNavigated = true;
         Navigator.of(context).pushReplacement(
           MaterialPageRoute(
             builder: (_) => ResultScreen(result: exam.result!),

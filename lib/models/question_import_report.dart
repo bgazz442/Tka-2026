@@ -28,7 +28,7 @@ class QuestionImportReport {
   
   final DateTime validatedAt;
 
-  const QuestionImportReport({
+  QuestionImportReport({
     required this.subject,
     required this.tryoutId,
     required this.tryoutName,

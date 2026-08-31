@@ -89,10 +89,10 @@ class EnglishPackages {
 
   static final List<Question> _package1Questions = [
     const Question(
-      id: 1,
+      id: 'eng-01-001',
       stimulus:
           'Read the following text carefully.\n\nThe Amazon Rainforest, often called the "lungs of the Earth," covers about 5.5 million square kilometers across nine countries in South America. It produces more than 20% of the world\'s oxygen and is home to an estimated 10% of all species on Earth. However, deforestation has been a growing concern. Between 2000 and 2022, the Amazon lost approximately 17% of its total forest cover due to agricultural expansion, illegal logging, and infrastructure development.',
-      question: 'What is the main purpose of the text above?',
+      questionText: 'What is the main purpose of the text above?',
       options: {
         'A': 'To describe the beauty of the Amazon Rainforest',
         'B':
@@ -101,13 +101,13 @@ class EnglishPackages {
         'D': 'To explain the types of animals living in the Amazon Rainforest',
         'E': 'To compare the Amazon with other rainforests in the world'
       },
-      correctAnswer: 'B',
+      correctAnswers: ['B'],
       explanation:
           'The text mainly informs readers about the Amazon Rainforest (its size, importance) and the growing problem of deforestation.',
     ),
     const Question(
-      id: 2,
-      question:
+      id: 'eng-01-002',
+      questionText:
           'According to the text, how much of its forest cover has the Amazon lost between 2000 and 2022?',
       options: {
         'A': '10%',
@@ -116,13 +116,13 @@ class EnglishPackages {
         'D': '20%',
         'E': '25%'
       },
-      correctAnswer: 'C',
+      correctAnswers: ['C'],
       explanation:
           'The text explicitly states: "the Amazon lost approximately 17% of its total forest cover."',
     ),
     const Question(
-      id: 3,
-      question:
+      id: 'eng-01-003',
+      questionText:
           'The word "estimated" in the text is closest in meaning to...',
       options: {
         'A': 'exactly',
@@ -131,15 +131,15 @@ class EnglishPackages {
         'D': 'surprisingly',
         'E': 'recently'
       },
-      correctAnswer: 'B',
+      correctAnswers: ['B'],
       explanation:
           '"Estimated" means approximately or roughly calculated.',
     ),
     const Question(
-      id: 4,
+      id: 'eng-01-004',
       stimulus:
           'Read the following dialogue.\n\nSara: "I heard you got accepted at the University of Indonesia. Congratulations!"\nBudi: "Thank you. I\'m really excited but also a bit nervous."\nSara: "Don\'t worry. You\'ll do great. What will you major in?"\nBudi: "I plan to study Environmental Engineering. I want to contribute to solving Indonesia\'s environmental problems."',
-      question: 'What can we infer about Budi from the dialogue?',
+      questionText: 'What can we infer about Budi from the dialogue?',
       options: {
         'A': 'He is not interested in environmental issues',
         'B': 'He has always wanted to study at a foreign university',
@@ -148,13 +148,13 @@ class EnglishPackages {
         'D': 'He is unsure about his major',
         'E': 'He feels confident about university life'
       },
-      correctAnswer: 'C',
+      correctAnswers: ['C'],
       explanation:
           'Budi explicitly says he wants to "contribute to solving Indonesia\'s environmental problems."',
     ),
     const Question(
-      id: 5,
-      question:
+      id: 'eng-01-005',
+      questionText:
           'The expression "Don\'t worry. You\'ll do great." is used to...',
       options: {
         'A': 'warn someone',
@@ -163,13 +163,13 @@ class EnglishPackages {
         'D': 'apologize',
         'E': 'ask for permission'
       },
-      correctAnswer: 'C',
+      correctAnswers: ['C'],
       explanation:
           'The expression is used to encourage Budi who feels nervous.',
     ),
     const Question(
-      id: 6,
-      question: 'Choose the correct sentence below.',
+      id: 'eng-01-006',
+      questionText: 'Choose the correct sentence below.',
       options: {
         'A': 'She don\'t like to eat spicy food.',
         'B': 'They was playing football yesterday.',
@@ -177,13 +177,13 @@ class EnglishPackages {
         'D': 'We have finished the project last night.',
         'E': 'The committee has not released the results yet.'
       },
-      correctAnswer: 'E',
+      correctAnswers: ['E'],
       explanation:
           '"Has not released" uses Present Perfect correctly with "yet."',
     ),
     const Question(
-      id: 7,
-      question:
+      id: 'eng-01-007',
+      questionText:
           'The students ______ studying for their final exams when the power went out.',
       options: {
         'A': 'are',
@@ -192,13 +192,13 @@ class EnglishPackages {
         'D': 'had',
         'E': 'have been'
       },
-      correctAnswer: 'B',
+      correctAnswers: ['B'],
       explanation:
           'Past Continuous "were studying" is correct here for an ongoing action interrupted by the past simple ("power went out").',
     ),
     const Question(
-      id: 8,
-      question:
+      id: 'eng-01-008',
+      questionText:
           'If she ______ harder last semester, she would have passed the exam.',
       options: {
         'A': 'studies',
@@ -207,15 +207,15 @@ class EnglishPackages {
         'D': 'has studied',
         'E': 'would study'
       },
-      correctAnswer: 'C',
+      correctAnswers: ['C'],
       explanation:
           'Third Conditional (past unreal): "If + Past Perfect, would have + V3".',
     ),
     const Question(
-      id: 9,
+      id: 'eng-01-009',
       stimulus:
           'Read the following text.\n\nSolar energy is one of the most promising renewable energy sources available today. Photovoltaic (PV) panels convert sunlight directly into electricity through the photoelectric effect. Unlike fossil fuels, solar energy produces no direct carbon emissions during operation. The global solar capacity has grown from approximately 40 GW in 2010 to over 1,000 GW in 2022, representing a 25-fold increase in just over a decade.',
-      question: 'What does the text mainly discuss?',
+      questionText: 'What does the text mainly discuss?',
       options: {
         'A': 'The history of fossil fuels',
         'B': 'How to install solar panels at home',
@@ -223,13 +223,13 @@ class EnglishPackages {
         'D': 'The comparison between solar and wind energy',
         'E': 'Why Germany uses more solar energy than China'
       },
-      correctAnswer: 'C',
+      correctAnswers: ['C'],
       explanation:
           'The text discusses both the benefits of solar energy and its impressive global growth.',
     ),
     const Question(
-      id: 10,
-      question:
+      id: 'eng-01-010',
+      questionText:
           'According to the text, solar capacity grew from 40 GW to over 1,000 GW. This represents...',
       options: {
         'A': 'a 10-fold increase',
@@ -238,7 +238,7 @@ class EnglishPackages {
         'D': 'a 30-fold increase',
         'E': 'a 40-fold increase'
       },
-      correctAnswer: 'C',
+      correctAnswers: ['C'],
       explanation:
           'The text explicitly states "representing a 25-fold increase in just over a decade."',
     ),
@@ -246,10 +246,10 @@ class EnglishPackages {
 
   static final List<Question> _package2Questions = [
     const Question(
-      id: 1,
+      id: 'eng-02-001',
       stimulus:
           'Read the text below.\n\nTeleworking, also known as remote work, has become increasingly popular since the COVID-19 pandemic. Many companies have adopted permanent remote or hybrid work policies. Proponents argue that teleworking increases productivity, reduces commuting stress, and offers better work-life balance. Critics, however, claim that remote work can lead to social isolation, communication difficulties, and blurred boundaries between personal and professional life.',
-      question: 'What is the text mainly about?',
+      questionText: 'What is the text mainly about?',
       options: {
         'A': 'The history of the COVID-19 pandemic',
         'B': 'Different perspectives on teleworking',
@@ -257,13 +257,13 @@ class EnglishPackages {
         'D': 'The negative effects of working from home',
         'E': 'Why employees prefer office work'
       },
-      correctAnswer: 'B',
+      correctAnswers: ['B'],
       explanation:
           'The text presents both sides — advantages (proponents) and disadvantages (critics) of teleworking.',
     ),
     const Question(
-      id: 2,
-      question: 'The word "proponents" is closest in meaning to...',
+      id: 'eng-02-002',
+      questionText: 'The word "proponents" is closest in meaning to...',
       options: {
         'A': 'opponents',
         'B': 'critics',
@@ -271,13 +271,13 @@ class EnglishPackages {
         'D': 'employers',
         'E': 'researchers'
       },
-      correctAnswer: 'C',
+      correctAnswers: ['C'],
       explanation:
           '"Proponents" are supporters or advocates — the opposite of opponents/critics.',
     ),
     const Question(
-      id: 3,
-      question: 'They have been living in Bandung ______ ten years.',
+      id: 'eng-02-003',
+      questionText: 'They have been living in Bandung ______ ten years.',
       options: {
         'A': 'since',
         'B': 'for',
@@ -285,12 +285,12 @@ class EnglishPackages {
         'D': 'from',
         'E': 'at'
       },
-      correctAnswer: 'B',
+      correctAnswers: ['B'],
       explanation: '"For" is used with a duration of time (ten years).',
     ),
     const Question(
-      id: 4,
-      question:
+      id: 'eng-02-004',
+      questionText:
           'The project ______ by the time the investors arrive tomorrow.',
       options: {
         'A': 'will complete',
@@ -299,12 +299,12 @@ class EnglishPackages {
         'D': 'has completed',
         'E': 'completes'
       },
-      correctAnswer: 'B',
+      correctAnswers: ['B'],
       explanation: 'Future Perfect Passive: "will be completed."',
     ),
     const Question(
-      id: 5,
-      question: '______ he studied hard, he failed the exam.',
+      id: 'eng-02-005',
+      questionText: '______ he studied hard, he failed the exam.',
       options: {
         'A': 'Because',
         'B': 'So',
@@ -312,7 +312,7 @@ class EnglishPackages {
         'D': 'Since',
         'E': 'When'
       },
-      correctAnswer: 'C',
+      correctAnswers: ['C'],
       explanation:
           '"Although" expresses contrast between studying hard and failing.',
     ),
@@ -320,10 +320,10 @@ class EnglishPackages {
 
   static final List<Question> _package3Questions = [
     const Question(
-      id: 1,
+      id: 'eng-03-001',
       stimulus:
           'Read the following text.\n\nArtificial Intelligence (AI) is rapidly transforming various industries, from healthcare and education to finance and manufacturing. In healthcare, AI algorithms can analyze medical images with accuracy comparable to trained physicians. In education, adaptive learning platforms personalize content based on each student\'s performance and learning pace.',
-      question: 'What is the main idea of the text?',
+      questionText: 'What is the main idea of the text?',
       options: {
         'A': 'AI is replacing doctors in hospitals',
         'B': 'AI is transforming industries while raising concerns',
@@ -331,13 +331,13 @@ class EnglishPackages {
         'D': 'AI causes more problems than benefits',
         'E': 'Experts universally support AI development'
       },
-      correctAnswer: 'B',
+      correctAnswers: ['B'],
       explanation:
           'The text covers AI\'s positive transformation across healthcare, education, and other sectors.',
     ),
     const Question(
-      id: 2,
-      question:
+      id: 'eng-03-002',
+      questionText:
           'Not only ______ late, but he also forgot to bring his report.',
       options: {
         'A': 'he arrived',
@@ -346,7 +346,7 @@ class EnglishPackages {
         'D': 'arrived he',
         'E': 'has he arrived'
       },
-      correctAnswer: 'B',
+      correctAnswers: ['B'],
       explanation:
           'Inversion after "Not only": "Not only did he arrive late..."',
     ),
@@ -354,10 +354,10 @@ class EnglishPackages {
 
   static final List<Question> _package4Questions = [
     const Question(
-      id: 1,
+      id: 'eng-04-001',
       stimulus:
           'The following text is about climate change.\n\nClimate change refers to long-term shifts in global temperatures and weather patterns. Human activities — primarily burning fossil fuels — have been the main driver of climate change. Scientists warn that without significant reductions in greenhouse gas emissions, the consequences could be catastrophic and irreversible.',
-      question: 'What does the text imply about climate change?',
+      questionText: 'What does the text imply about climate change?',
       options: {
         'A': 'Climate change is entirely a natural phenomenon',
         'B': 'Human activities have little effect on climate change',
@@ -365,7 +365,7 @@ class EnglishPackages {
         'D': 'The effects of climate change are temporary',
         'E': 'Only coastal cities are affected by climate change'
       },
-      correctAnswer: 'C',
+      correctAnswers: ['C'],
       explanation:
           'The text warns that without reductions, consequences will be catastrophic and irreversible.',
     ),
@@ -373,8 +373,8 @@ class EnglishPackages {
 
   static final List<Question> _package5Questions = [
     const Question(
-      id: 1,
-      question: 'She ______ to the doctor if the pain continues.',
+      id: 'eng-05-001',
+      questionText: 'She ______ to the doctor if the pain continues.',
       options: {
         'A': 'go',
         'B': 'goes',
@@ -382,7 +382,7 @@ class EnglishPackages {
         'D': 'would go',
         'E': 'has gone'
       },
-      correctAnswer: 'C',
+      correctAnswers: ['C'],
       explanation:
           'First Conditional: "If + present simple, will + base verb."',
     ),
@@ -390,8 +390,8 @@ class EnglishPackages {
 
   static final List<Question> _package6Questions = [
     const Question(
-      id: 1,
-      question:
+      id: 'eng-06-001',
+      questionText:
           'She ______ working overtime this week because of the project deadline.',
       options: {
         'A': 'has',
@@ -400,15 +400,15 @@ class EnglishPackages {
         'D': 'had been',
         'E': 'was'
       },
-      correctAnswer: 'C',
+      correctAnswers: ['C'],
       explanation: 'Present Perfect Continuous: "has been working."',
     ),
   ];
 
   static final List<Question> _package7Questions = [
     const Question(
-      id: 1,
-      question:
+      id: 'eng-07-001',
+      questionText:
           'Which city is described as the "global hub" of startup culture?',
       options: {
         'A': 'Berlin',
@@ -417,15 +417,15 @@ class EnglishPackages {
         'D': 'Silicon Valley',
         'E': 'Bangalore'
       },
-      correctAnswer: 'D',
+      correctAnswers: ['D'],
       explanation: 'Silicon Valley is widely known as the global startup hub.',
     ),
   ];
 
   static final List<Question> _package8Questions = [
     const Question(
-      id: 1,
-      question:
+      id: 'eng-08-001',
+      questionText:
           'The construction of the new bridge ______ by the end of next year.',
       options: {
         'A': 'will complete',
@@ -434,7 +434,7 @@ class EnglishPackages {
         'D': 'has been completed',
         'E': 'completing'
       },
-      correctAnswer: 'C',
+      correctAnswers: ['C'],
       explanation: 'Future Perfect Passive: "will have been completed."',
     ),
   ];

@@ -6,13 +6,13 @@ class StimulusGroup {
   final List<String> questionIds;
   final DateTime createdAt;
 
-  const StimulusGroup({
+  StimulusGroup({
     required this.id,
     this.text,
     this.imageUrl,
     required this.questionIds,
     DateTime? createdAt,
-  }) : createdAt = createdAt ?? const DateTime.unix(0);
+  }) : createdAt = createdAt ?? DateTime.fromMillisecondsSinceEpoch(0);
 
   Map<String, dynamic> toJson() => {
         'id': id,
