@@ -4,8 +4,10 @@ import '../models/question.dart';
 class QuestionNavigatorWidget extends StatelessWidget {
   final List<Question> questions;
   final int currentIndex;
-  final Map<int, String> answers;
-  final Set<int> flaggedQuestions;
+
+  /// Keys are question.id (String); value is the stored answer.
+  final Map<String, dynamic> answers;
+  final Set<String> flaggedQuestions;
   final ValueChanged<int> onSelectQuestion;
 
   const QuestionNavigatorWidget({
@@ -29,7 +31,7 @@ class QuestionNavigatorWidget extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Header title
+          // Header
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
@@ -50,21 +52,21 @@ class QuestionNavigatorWidget extends StatelessWidget {
           ),
           const SizedBox(height: 12),
 
-          // Status Legend
+          // Legend
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: [
-              _buildLegend(const Color(0xFFF1F5F9), const Color(0xFF64748B),
+              _legend(const Color(0xFFF1F5F9), const Color(0xFF64748B),
                   'Belum dijawab'),
-              _buildLegend(const Color(0xFF4F46E5), Colors.white, 'Dijawab'),
-              _buildLegend(
-                  const Color(0xFFFFFBEB), const Color(0xFFD97706), 'Ditandai',
+              _legend(const Color(0xFF4F46E5), Colors.white, 'Dijawab'),
+              _legend(const Color(0xFFFFFBEB), const Color(0xFFD97706),
+                  'Ditandai',
                   borderColor: const Color(0xFFF59E0B)),
             ],
           ),
           const SizedBox(height: 20),
 
-          // Grid of Question Numbers
+          // Grid
           ConstrainedBox(
             constraints: BoxConstraints(
               maxHeight: MediaQuery.of(context).size.height * 0.45,
@@ -75,30 +77,29 @@ class QuestionNavigatorWidget extends StatelessWidget {
                 runSpacing: 10,
                 children: List.generate(questions.length, (index) {
                   final q = questions[index];
-                  final isAnswered =
-                      answers.containsKey(q.id) && answers[q.id]!.isNotEmpty;
+                  final rawAnswer = answers[q.id];
+                  final isAnswered = rawAnswer != null &&
+                      rawAnswer.toString().trim().isNotEmpty;
                   final isFlagged = flaggedQuestions.contains(q.id);
                   final isActive = index == currentIndex;
 
                   Color itemBg = const Color(0xFFF1F5F9);
-                  Color itemTextColor = const Color(0xFF475569);
+                  Color itemText = const Color(0xFF475569);
                   Border? itemBorder;
 
                   if (isAnswered) {
                     itemBg = const Color(0xFF4F46E5);
-                    itemTextColor = Colors.white;
+                    itemText = Colors.white;
                   }
-
                   if (isFlagged) {
                     itemBg = const Color(0xFFFFFBEB);
-                    itemTextColor = const Color(0xFFD97706);
+                    itemText = const Color(0xFFD97706);
                     itemBorder =
                         Border.all(color: const Color(0xFFF59E0B), width: 2);
                   }
-
                   if (isActive) {
-                    itemBorder =
-                        Border.all(color: const Color(0xFF4F46E5), width: 2.5);
+                    itemBorder = Border.all(
+                        color: const Color(0xFF4F46E5), width: 2.5);
                   }
 
                   return GestureDetector(
@@ -132,7 +133,7 @@ class QuestionNavigatorWidget extends StatelessWidget {
                               style: TextStyle(
                                 fontSize: 14,
                                 fontWeight: FontWeight.bold,
-                                color: itemTextColor,
+                                color: itemText,
                               ),
                             ),
                           ),
@@ -140,11 +141,8 @@ class QuestionNavigatorWidget extends StatelessWidget {
                             const Positioned(
                               top: 4,
                               right: 4,
-                              child: Icon(
-                                Icons.bookmark_rounded,
-                                size: 12,
-                                color: Color(0xFFD97706),
-                              ),
+                              child: Icon(Icons.bookmark_rounded,
+                                  size: 12, color: Color(0xFFD97706)),
                             ),
                         ],
                       ),
@@ -160,8 +158,7 @@ class QuestionNavigatorWidget extends StatelessWidget {
     );
   }
 
-  Widget _buildLegend(Color bg, Color text, String label,
-      {Color? borderColor}) {
+  Widget _legend(Color bg, Color text, String label, {Color? borderColor}) {
     return Row(
       children: [
         Container(
@@ -174,10 +171,8 @@ class QuestionNavigatorWidget extends StatelessWidget {
           ),
         ),
         const SizedBox(width: 6),
-        Text(
-          label,
-          style: const TextStyle(fontSize: 12, color: Color(0xFF64748B)),
-        ),
+        Text(label,
+            style: const TextStyle(fontSize: 12, color: Color(0xFF64748B))),
       ],
     );
   }

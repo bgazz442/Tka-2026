@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import '../models/exam_package.dart';
 import '../models/exam_result.dart';
 import '../models/question.dart';
+import '../models/question_type.dart';
 import 'storage_service.dart';
 import 'scoring_service.dart';
 import 'timer_service.dart';
@@ -14,8 +15,12 @@ class ExamService extends ChangeNotifier {
   final String username;
 
   int _currentIndex = 0;
-  final Map<int, String> _answers = {};
-  final Set<int> _flaggedQuestions = {};
+
+  /// Keyed by question.id (String).
+  /// Value is String for single-choice, or comma-joined for multi-select.
+  final Map<String, dynamic> _answers = {};
+
+  final Set<String> _flaggedQuestions = {};
   int _warningsCount = 0;
 
   late DateTime _startedAt;
@@ -24,7 +29,7 @@ class ExamService extends ChangeNotifier {
   int _remainingSeconds = 0;
 
   bool _isSubmitting = false;
-  bool _submitGuard = false; // Prevents duplicate submissions
+  bool _submitGuard = false;
   ExamResult? _result;
   AntiCheatService? _antiCheatService;
 
@@ -39,22 +44,27 @@ class ExamService extends ChangeNotifier {
     } else {
       _initNewSession();
     }
-
     _initAntiCheat();
     _startTimer();
   }
+
+  // ─── Getters ────────────────────────────────────────────────────────────────
 
   int get currentIndex => _currentIndex;
   Question get currentQuestion => package.questions[_currentIndex];
   int get totalQuestions => package.questions.length;
 
-  Map<int, String> get answers => Map.unmodifiable(_answers);
-  Set<int> get flaggedQuestions => Set.unmodifiable(_flaggedQuestions);
+  Map<String, dynamic> get answers => Map.unmodifiable(_answers);
+  Set<String> get flaggedQuestions => Set.unmodifiable(_flaggedQuestions);
 
   int get warningsCount => _warningsCount;
   int get remainingSeconds => _remainingSeconds;
   bool get isSubmitting => _isSubmitting;
   ExamResult? get result => _result;
+
+  int get answeredCount => _answers.length;
+
+  // ─── Session init ───────────────────────────────────────────────────────────
 
   void _initNewSession() {
     _startedAt = DateTime.now();
@@ -64,7 +74,6 @@ class ExamService extends ChangeNotifier {
     _answers.clear();
     _flaggedQuestions.clear();
     _warningsCount = 0;
-
     _saveStateToStorage();
   }
 
@@ -72,32 +81,30 @@ class ExamService extends ChangeNotifier {
     _currentIndex = session['currentIndex'] as int? ?? 0;
     _warningsCount = session['warningsCount'] as int? ?? 0;
 
-    if (session['startedAt'] != null) {
-      _startedAt = DateTime.parse(session['startedAt'] as String);
-    } else {
-      _startedAt = DateTime.now();
-    }
+    _startedAt = session['startedAt'] != null
+        ? DateTime.parse(session['startedAt'] as String)
+        : DateTime.now();
 
-    if (session['endAt'] != null) {
-      _endAt = DateTime.parse(session['endAt'] as String);
-    } else {
-      _endAt = _startedAt.add(Duration(seconds: package.durationSeconds));
-    }
+    _endAt = session['endAt'] != null
+        ? DateTime.parse(session['endAt'] as String)
+        : _startedAt.add(Duration(seconds: package.durationSeconds));
 
     if (session['answers'] != null) {
       (session['answers'] as Map).forEach((k, v) {
-        _answers[int.parse(k.toString())] = v.toString();
+        _answers[k.toString()] = v;
       });
     }
 
     if (session['flagged'] != null) {
       for (final id in (session['flagged'] as List)) {
-        _flaggedQuestions.add(int.parse(id.toString()));
+        _flaggedQuestions.add(id.toString());
       }
     }
 
     _remainingSeconds = TimerService.getRemainingSeconds(_endAt);
   }
+
+  // ─── Anti-cheat ─────────────────────────────────────────────────────────────
 
   void _initAntiCheat() {
     _antiCheatService = AntiCheatService(
@@ -114,6 +121,8 @@ class ExamService extends ChangeNotifier {
     );
     _antiCheatService?.startListening();
   }
+
+  // ─── Timer ──────────────────────────────────────────────────────────────────
 
   void _startTimer() {
     _timer?.cancel();
@@ -135,14 +144,57 @@ class ExamService extends ChangeNotifier {
     });
   }
 
-  void selectAnswer(int questionId, String optionId) {
+  // ─── User actions ────────────────────────────────────────────────────────────
+
+  /// Select or toggle a single answer option.
+  void selectAnswer(String questionId, String optionId) {
     if (_isSubmitting) return;
-    _answers[questionId] = optionId;
+    final q = _getQuestionById(questionId);
+    if (q == null) return;
+
+    if (q.questionType.allowsMultipleAnswers) {
+      // Multi-select: toggle the option in a comma-separated list
+      final current = _answers[questionId];
+      List<String> selected = current != null && current is String && current.isNotEmpty
+          ? current.split(',')
+          : [];
+      if (selected.contains(optionId)) {
+        selected.remove(optionId);
+      } else {
+        selected.add(optionId);
+      }
+      if (selected.isEmpty) {
+        _answers.remove(questionId);
+      } else {
+        _answers[questionId] = selected.join(',');
+      }
+    } else {
+      // Single select
+      _answers[questionId] = optionId;
+    }
     _saveStateToStorage();
     notifyListeners();
   }
 
-  void toggleFlag(int questionId) {
+  /// For True/False type: select answer for a specific sub-statement key.
+  void selectTrueFalseAnswer(String questionId, String statementKey, String value) {
+    if (_isSubmitting) return;
+    // Stored as JSON-like: "1:True,2:False,3:True"
+    final current = _answers[questionId];
+    final Map<String, String> stateMap = {};
+    if (current != null && current is String && current.isNotEmpty) {
+      for (final pair in current.split(',')) {
+        final parts = pair.split(':');
+        if (parts.length == 2) stateMap[parts[0]] = parts[1];
+      }
+    }
+    stateMap[statementKey] = value;
+    _answers[questionId] = stateMap.entries.map((e) => '${e.key}:${e.value}').join(',');
+    _saveStateToStorage();
+    notifyListeners();
+  }
+
+  void toggleFlag(String questionId) {
     if (_isSubmitting) return;
     if (_flaggedQuestions.contains(questionId)) {
       _flaggedQuestions.remove(questionId);
@@ -177,62 +229,81 @@ class ExamService extends ChangeNotifier {
     }
   }
 
+  // ─── Submit ──────────────────────────────────────────────────────────────────
+
   Future<ExamResult?> submitExam({
     bool forcedByTimeout = false,
     bool forcedByAntiCheat = false,
   }) async {
-    // Duplicate submission guard
     if (_isSubmitting || _submitGuard) return _result;
     _isSubmitting = true;
     _submitGuard = true;
     _timer?.cancel();
     _antiCheatService?.stopListening();
+    notifyListeners();
 
-    final int elapsed = TimerService.getElapsedSeconds(_startedAt);
+    try {
+      final int elapsed = TimerService.getElapsedSeconds(_startedAt);
+      final resultId =
+          '${uid}_${package.id}_${DateTime.now().millisecondsSinceEpoch}';
 
-    // Generate unique result ID using UID + packageId + timestamp
-    final resultId =
-        '${uid}_${package.id}_${DateTime.now().millisecondsSinceEpoch}';
+      _result = ScoringService.calculate(
+        uid: uid,
+        username: username,
+        subjectId: package.subjectId,
+        packageId: package.id,
+        packageName: package.title,
+        questions: package.questions,
+        answers: _answers,
+        flaggedQuestions: _flaggedQuestions.toList(),
+        durationSeconds: elapsed,
+        startedAt: _startedAt.toIso8601String(),
+        warningsCount: _warningsCount,
+        scoreCorrect: package.defaultScoreCorrect,
+        scoreWrong: package.defaultScoreWrong,
+        scoreEmpty: package.defaultScoreEmpty,
+        resultId: resultId,
+      );
 
-    _result = ScoringService.calculate(
-      uid: uid,
-      username: username,
-      subjectId: package.subjectId,
-      packageId: package.id,
-      packageName: package.title,
-      questions: package.questions,
-      answers: _answers,
-      flaggedQuestions: _flaggedQuestions.toList(),
-      durationSeconds: elapsed,
-      startedAt: _startedAt.toIso8601String(),
-      warningsCount: _warningsCount,
-      scoreCorrect: package.defaultScoreCorrect,
-      scoreWrong: package.defaultScoreWrong,
-      scoreEmpty: package.defaultScoreEmpty,
-      resultId: resultId,
-    );
-
-    await StorageService.appendHistory(_result!);
-
-    await StorageService.clearActiveExam();
+      await StorageService.appendHistory(_result!);
+      await StorageService.clearActiveExam();
+    } catch (e) {
+      debugPrint('[ExamService] submitExam error: $e');
+      _isSubmitting = false;
+      _submitGuard = false;
+      notifyListeners();
+      return null;
+    }
 
     notifyListeners();
     return _result;
   }
 
+  // ─── Persistence ─────────────────────────────────────────────────────────────
+
   void _saveStateToStorage() {
     if (_isSubmitting) return;
-    final Map<String, dynamic> state = {
+    final state = {
       'packageId': package.id,
       'subjectId': package.subjectId,
       'currentIndex': _currentIndex,
       'startedAt': _startedAt.toIso8601String(),
       'endAt': _endAt.toIso8601String(),
       'warningsCount': _warningsCount,
-      'answers': _answers.map((k, v) => MapEntry(k.toString(), v)),
+      'answers': Map<String, dynamic>.from(_answers),
       'flagged': _flaggedQuestions.toList(),
     };
     StorageService.saveActiveExam(state);
+  }
+
+  // ─── Helpers ─────────────────────────────────────────────────────────────────
+
+  Question? _getQuestionById(String id) {
+    try {
+      return package.questions.firstWhere((q) => q.id == id);
+    } catch (_) {
+      return null;
+    }
   }
 
   @override

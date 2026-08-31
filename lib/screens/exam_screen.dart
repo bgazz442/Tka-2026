@@ -170,6 +170,10 @@ class _ExamContentState extends State<_ExamContent> {
                 onAnswerSelected: (optionId) {
                   exam.selectAnswer(exam.currentQuestion.id, optionId);
                 },
+                onTrueFalseSelected: (key, value) {
+                  exam.selectTrueFalseAnswer(
+                      exam.currentQuestion.id, key, value);
+                },
               ),
             ),
           ],

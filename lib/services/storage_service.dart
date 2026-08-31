@@ -136,9 +136,15 @@ class StorageService {
   static List<ExamResult> getHistory() {
     final data = _historyBox.get(_keyHistory);
     if (data is! List) return const [];
-    return data
-        .map((item) => ExamResult.fromJson(Map<String, dynamic>.from(item as Map)))
-        .toList();
+    final results = <ExamResult>[];
+    for (final item in data) {
+      try {
+        results.add(ExamResult.fromJson(Map<String, dynamic>.from(item as Map)));
+      } catch (e) {
+        // Skip malformed entries silently
+      }
+    }
+    return results;
   }
 
   static Future<void> saveHistory(List<ExamResult> results) async {

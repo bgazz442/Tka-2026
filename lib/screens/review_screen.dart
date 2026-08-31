@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import '../models/exam_result.dart';
-import '../models/question.dart';
 import '../utils/constants.dart';
 import '../widgets/question_card.dart';
 
@@ -29,29 +28,20 @@ class _ReviewScreenState extends State<ReviewScreen> {
       );
     }
 
-    final currentBreakdown = breakdownList[_currentIndex];
-
-    // Reconstruct a Question object for QuestionCardWidget rendering
-    final question = Question(
-      id: currentBreakdown.id,
-      stimulus: currentBreakdown.stimulus,
-      question: currentBreakdown.question,
-      options: currentBreakdown.options,
-      correctAnswer: currentBreakdown.correctAnswer,
-      explanation: currentBreakdown.explanation,
-    );
+    final current = breakdownList[_currentIndex];
+    final question = current.toQuestion();
 
     Color statusBgColor = const Color(0xFFF1F5F9);
     Color statusTextColor = const Color(0xFF64748B);
     String statusText = 'TIDAK DIJAWAB';
     IconData statusIcon = Icons.remove_circle_outline_rounded;
 
-    if (currentBreakdown.status == 'correct') {
+    if (current.status == 'correct') {
       statusBgColor = const Color(0xFFF0FDF4);
       statusTextColor = const Color(0xFF16A34A);
       statusText = 'BENAR';
       statusIcon = Icons.check_circle_rounded;
-    } else if (currentBreakdown.status == 'wrong') {
+    } else if (current.status == 'wrong') {
       statusBgColor = const Color(0xFFFFF1F2);
       statusTextColor = const Color(0xFFDC2626);
       statusText = 'SALAH';
@@ -84,30 +74,33 @@ class _ReviewScreenState extends State<ReviewScreen> {
                   ),
                 ),
                 const Spacer(),
-                Text(
-                  'Jawaban kamu: ${currentBreakdown.userAnswer ?? "-"} | Benar: ${currentBreakdown.correctAnswer}',
-                  style: const TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.bold,
-                    color: Color(0xFF0F172A),
+                Flexible(
+                  child: Text(
+                    'Kamu: ${current.userAnswer ?? "-"}  |  Benar: ${current.correctAnswer}',
+                    style: const TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF0F172A),
+                    ),
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ),
               ],
             ),
           ),
 
-          // Question Card
+          // Question Card (review mode)
           Expanded(
             child: QuestionCardWidget(
               question: question,
-              selectedAnswer: currentBreakdown.userAnswer,
+              selectedAnswer: current.userAnswer,
               isReviewMode: true,
             ),
           ),
         ],
       ),
 
-      // Bottom Navigation controls
+      // Bottom Navigation
       bottomNavigationBar: Container(
         padding: EdgeInsets.only(
           left: 16,
@@ -127,8 +120,7 @@ class _ReviewScreenState extends State<ReviewScreen> {
                     ? () => setState(() => _currentIndex--)
                     : null,
                 style: OutlinedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(vertical: 12),
-                ),
+                    padding: const EdgeInsets.symmetric(vertical: 12)),
                 child: const Text('Sebelumnya'),
               ),
             ),
@@ -139,8 +131,7 @@ class _ReviewScreenState extends State<ReviewScreen> {
                     ? () => setState(() => _currentIndex++)
                     : () => Navigator.pop(context),
                 style: ElevatedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(vertical: 12),
-                ),
+                    padding: const EdgeInsets.symmetric(vertical: 12)),
                 child: Text(
                   _currentIndex < breakdownList.length - 1
                       ? 'Berikutnya'

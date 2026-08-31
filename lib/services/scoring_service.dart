@@ -1,8 +1,13 @@
 import '../models/question.dart';
 import '../models/exam_result.dart';
+import '../models/question_type.dart';
 
 class ScoringService {
-  /// Calculate tryout result based on user answers and questions
+  /// Calculate the full exam result from questions + user answers.
+  ///
+  /// [answers] maps question.id (String) → user answer value.
+  /// For single-choice that is the option letter ('A', 'B', …).
+  /// For multi-select that is a comma-joined list ('A,C,E').
   static ExamResult calculate({
     required String uid,
     required String username,
@@ -10,12 +15,12 @@ class ScoringService {
     required String packageId,
     required String packageName,
     required List<Question> questions,
-    required Map<int, String> answers,
-    required List<int> flaggedQuestions,
+    required Map<String, dynamic> answers,
+    required List<String> flaggedQuestions,
     required int durationSeconds,
     required String startedAt,
     required int warningsCount,
-    String? resultId, // Pre-generated unique ID from caller
+    String? resultId,
     int scoreCorrect = 4,
     int scoreWrong = -1,
     int scoreEmpty = 0,
@@ -25,48 +30,69 @@ class ScoringService {
     int emptyCount = 0;
     int rawScore = 0;
 
-    final List<QuestionBreakdown> breakdownList = [];
+    final breakdownList = <QuestionBreakdown>[];
 
     for (final q in questions) {
-      final userAnswer = answers[q.id];
-      final correctAnswer = q.correctAnswer;
+      // Normalise the stored answer value
+      final rawAnswer = answers[q.id];
+      dynamic userAnswer;
+      if (rawAnswer == null || (rawAnswer is String && rawAnswer.trim().isEmpty)) {
+        userAnswer = null;
+      } else if (q.questionType.allowsMultipleAnswers && rawAnswer is String) {
+        // Convert comma-separated back to list
+        userAnswer = rawAnswer.split(',').map((s) => s.trim()).where((s) => s.isNotEmpty).toList();
+      } else {
+        userAnswer = rawAnswer;
+      }
 
       String status;
-      if (userAnswer == null || userAnswer.trim().isEmpty) {
+      int questionScore;
+
+      if (userAnswer == null) {
         status = 'empty';
         emptyCount++;
-        rawScore += scoreEmpty;
-      } else if (userAnswer.trim().toUpperCase() ==
-          correctAnswer.trim().toUpperCase()) {
+        questionScore = scoreEmpty;
+      } else if (q.isCorrect(userAnswer)) {
         status = 'correct';
         correctCount++;
-        rawScore += scoreCorrect;
+        questionScore = scoreCorrect;
       } else {
         status = 'wrong';
         wrongCount++;
-        rawScore += scoreWrong;
+        questionScore = scoreWrong;
       }
 
+      rawScore += questionScore;
+
       breakdownList.add(QuestionBreakdown(
-        id: q.id,
-        question: q.question,
+        questionId: q.id,
+        displayNumber: q.displayNumber,
+        question: q.questionText,
         stimulus: q.stimulus,
         options: q.options,
-        userAnswer: userAnswer,
-        correctAnswer: correctAnswer,
+        userAnswer: _formatAnswerForDisplay(userAnswer),
+        correctAnswer: q.correctAnswers.join(', '),
+        correctAnswers: q.correctAnswers,
         status: status,
-        explanation: q.explanation,
+        explanation: q.explanation ??
+            'Pembahasan belum tersedia untuk soal ini.',
+        questionType: q.questionType,
       ));
     }
 
     final int maxPossible = questions.length * scoreCorrect;
     final int clampedRaw = rawScore < 0 ? 0 : rawScore;
-    final int finalScore = maxPossible > 0
-        ? ((clampedRaw / maxPossible) * 100).round()
-        : 0;
+    final int finalScore =
+        maxPossible > 0 ? ((clampedRaw / maxPossible) * 100).round() : 0;
 
     final finalResultId =
         resultId ?? '$packageId-${DateTime.now().millisecondsSinceEpoch}';
+
+    // Normalise answers map to String→String for storage
+    final Map<String, String> normAnswers = {};
+    answers.forEach((k, v) {
+      if (v != null) normAnswers[k] = v.toString();
+    });
 
     return ExamResult(
       id: finalResultId,
@@ -84,43 +110,53 @@ class ScoringService {
       durationSeconds: durationSeconds,
       startedAt: startedAt,
       completedAt: DateTime.now().toIso8601String(),
-      answers: answers,
+      answers: normAnswers,
       flaggedQuestions: flaggedQuestions,
       warningsCount: warningsCount,
       breakdown: breakdownList,
     );
   }
 
-  /// Format duration seconds into human readable text (e.g. "68 menit 24 detik")
+  // ─── Helpers ────────────────────────────────────────────────────────────────
+
+  static String? _formatAnswerForDisplay(dynamic answer) {
+    if (answer == null) return null;
+    if (answer is List) return answer.join(', ');
+    return answer.toString();
+  }
+
   static String formatDurationText(int seconds) {
     if (seconds <= 0) return '0 detik';
     final h = seconds ~/ 3600;
     final m = (seconds % 3600) ~/ 60;
     final s = seconds % 60;
-
-    if (h > 0) {
-      return '$h jam $m menit $s detik';
-    } else if (m > 0) {
-      return '$m menit $s detik';
-    } else {
-      return '$s detik';
-    }
+    if (h > 0) return '$h jam $m menit $s detik';
+    if (m > 0) return '$m menit $s detik';
+    return '$s detik';
   }
 
-  /// Format seconds into clock format (HH:MM:SS or MM:SS)
   static String formatClock(int seconds) {
     if (seconds <= 0) return '00:00';
     final h = seconds ~/ 3600;
     final m = (seconds % 3600) ~/ 60;
     final s = seconds % 60;
+    final mm = m.toString().padLeft(2, '0');
+    final ss = s.toString().padLeft(2, '0');
+    if (h > 0) return '${h.toString().padLeft(2, '0')}:$mm:$ss';
+    return '$mm:$ss';
+  }
 
-    final String mStr = m.toString().padLeft(2, '0');
-    final String sStr = s.toString().padLeft(2, '0');
+  static double calculateAccuracy(int correct, int total) {
+    if (total == 0) return 0.0;
+    return (correct / total) * 100;
+  }
 
-    if (h > 0) {
-      final String hStr = h.toString().padLeft(2, '0');
-      return '$hStr:$mStr:$sStr';
-    }
-    return '$mStr:$sStr';
+  static String getPerformanceRating(int score) {
+    if (score >= 90) return 'Sempurna';
+    if (score >= 80) return 'Sangat Baik';
+    if (score >= 70) return 'Baik';
+    if (score >= 60) return 'Cukup';
+    if (score >= 50) return 'Kurang';
+    return 'Perlu Perbaikan';
   }
 }
